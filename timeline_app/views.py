@@ -60,3 +60,31 @@ def project_detail(request, project_id):
         'project': project,
         'milestones': milestones
     })
+
+@login_required
+def project_update(request, project_id):
+    project = get_object_or_404(Project, id=project_id, user=request.user)
+    if request.method == 'POST':
+        form = ProjectForm(request.POST, instance=project)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Project updated successfully!')
+            return redirect('project_detail', project_id=project.id)
+    else:
+        form = ProjectForm(instance=project)
+    return render(request, 'timeline_app/project_form.html', {
+        'form': form,
+        'edit_mode': True,
+        'project': project
+    })
+
+@login_required
+def project_delete(request, project_id):
+    project = get_object_or_404(Project, id=project_id, user=request.user)
+    if request.method == 'POST':
+        project.delete()
+        messages.success(request, 'Project deleted successfully!')
+        return redirect('dashboard')
+    return render(request, 'timeline_app/project_confirm_delete.html', {
+        'project': project
+    })
