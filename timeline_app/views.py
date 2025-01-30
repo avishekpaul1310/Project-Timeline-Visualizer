@@ -51,3 +51,12 @@ def milestone_create(request, project_id):
     else:
         form = MilestoneForm()
     return render(request, 'timeline_app/milestone_form.html', {'form': form, 'project': project})
+
+@login_required
+def project_detail(request, project_id):
+    project = get_object_or_404(Project, id=project_id, user=request.user)
+    milestones = project.milestone_set.all()
+    return render(request, 'timeline_app/project_detail.html', {
+        'project': project,
+        'milestones': milestones
+    })
