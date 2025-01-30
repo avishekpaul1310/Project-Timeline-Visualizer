@@ -1,0 +1,63 @@
+<!-- timeline_app/templates/timeline_app/dashboard.html -->
+{% extends 'timeline_app/base.html' %}
+
+{% block content %}
+<h2>My Projects</h2>
+<a href="{% url 'project_create' %}" class="btn btn-primary mb-3">Create New Project</a>
+
+<div class="row">
+    <div class="col-md-8">
+        <canvas id="timeline-chart"></canvas>
+    </div>
+    <div class="col-md-4">
+        <div class="list-group">
+            {% for project in projects %}
+                <a href="{% url 'project_detail' project.id %}" class="list-group-item list-group-item-action">
+                    {{ project.name }}
+                    <small class="text-muted d-block">
+                        {{ project.start_date }} - {{ project.end_date }}
+                    </small>
+                </a>
+            {% empty %}
+                <p>No projects yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Timeline visualization using Chart.js
+    const ctx = document.getElementById('timeline-chart').getContext('2d');
+    const projects = {{ projects_json|safe }};
+
+    const projectData = {
+        labels: projects.map(p => p.name),
+        datasets: [{
+            label: 'Projects Timeline',
+            data: projects.map(p => ({
+                x: [new Date(p.start_date), new Date(p.end_date)],
+                y: p.name
+            })),
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    };
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: projectData,
+        options: {
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day'
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

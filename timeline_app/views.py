@@ -5,12 +5,24 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Project, Milestone
 from .forms import ProjectForm, MilestoneForm
+import json
+from django.core.serializers import serialize
+from django.core.serializers.json import DjangoJSONEncoder
 
 @login_required
 def dashboard(request):
     projects = Project.objects.filter(user=request.user)
-    return render(request, 'timeline_app/dashboard.html', {'projects': projects})
-
+    # Serialize projects for the chart
+    projects_data = json.loads(serialize('json', projects))
+    projects_list = [{'name': p['fields']['name'],
+                     'start_date': p['fields']['start_date'],
+                     'end_date': p['fields']['end_date']} 
+                    for p in projects_data]
+    
+    return render(request, 'timeline_app/dashboard.html', {
+        'projects': projects,
+        'projects_json': json.dumps(projects_list, cls=DjangoJSONEncoder)
+    })
 @login_required
 def project_create(request):
     if request.method == 'POST':
