@@ -78,7 +78,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         try {
             const ctx = document.getElementById('timeline-chart').getContext('2d');
-            const projects = {{ projects_json|safe }};
+            const projects = JSON.parse('{{ projects_json|escapejs }}');
 
             // Check if projects exist
             if (!projects || !projects.length) {
