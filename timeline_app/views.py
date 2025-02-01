@@ -50,7 +50,10 @@ def milestone_create(request, project_id):
             return redirect('timeline_app:project_detail', project_id=project.id)
     else:
         form = MilestoneForm(project=project)
-    return render(request, 'timeline_app/milestone_form.html', {'form': form, 'project': project})
+    return render(request, 'timeline_app/milestone_form.html', {
+        'form': form,
+        'project': project
+    })
 
 @login_required
 def project_detail(request, project_id):

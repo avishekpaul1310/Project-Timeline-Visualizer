@@ -14,7 +14,7 @@ class TimelineAppTests(TestCase):
             password='testpass123'
         )
         
-        # Create test project
+        # Create test project with specific dates
         self.project = Project.objects.create(
             name='Test Project',
             start_date=timezone.now().date(),
@@ -99,16 +99,29 @@ class TimelineAppTests(TestCase):
     def test_milestone_create(self):
         """Test milestone creation"""
         self.client.login(username='testuser', password='testpass123')
+        
+        # Create test project first
+        test_project = Project.objects.get(id=self.project.id)  # Get the project created in setUp
+        
+        # Calculate a valid due date within the project's timeframe
+        valid_due_date = test_project.start_date + timedelta(days=15)
+        
         milestone_data = {
             'name': 'New Milestone',
-            'due_date': (self.project.start_date + timedelta(days=15)).isoformat()
+            'due_date': valid_due_date.isoformat()
         }
-        response = self.client.post(
-            reverse('timeline_app:milestone_create', kwargs={'project_id': self.project.id}),
-            milestone_data
-        )
+        
+        url = reverse('timeline_app:milestone_create', kwargs={'project_id': test_project.id})
+        response = self.client.post(url, milestone_data)
+        
         self.assertEqual(response.status_code, 302)  # Should redirect after creation
-        self.assertTrue(Milestone.objects.filter(name='New Milestone').exists())
+        
+        # Verify the milestone was created with correct project association
+        milestone = Milestone.objects.filter(name='New Milestone').first()
+        self.assertIsNotNone(milestone)
+        self.assertEqual(milestone.project, test_project)
+        self.assertEqual(milestone.due_date, valid_due_date)
+    
     def test_invalid_date_range(self):
         """Test validation for invalid date ranges"""
         self.client.login(username='testuser', password='testpass123')

@@ -35,18 +35,7 @@ class MilestoneForm(forms.ModelForm):
 
     def clean_due_date(self):
         due_date = self.cleaned_data.get('due_date')
-        project = self.project or (self.instance.project if self.instance else None)
-
-        if project and due_date:
-            if due_date < project.start_date or due_date > project.end_date:
-                raise ValidationError(
-                    "Milestone due date must be within project start and end dates"
-                )
-        return due_date
-
-    def clean_due_date(self):
-        due_date = self.cleaned_data.get('due_date')
-        project = self.instance.project if self.instance else None
+        project = self.project  # Use the project passed in __init__
 
         if project and due_date:
             if due_date < project.start_date or due_date > project.end_date:
