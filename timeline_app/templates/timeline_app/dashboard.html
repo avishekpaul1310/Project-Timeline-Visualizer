@@ -1,0 +1,205 @@
+<!-- timeline_app/templates/timeline_app/dashboard.html -->
+{% extends 'timeline_app/base.html' %}
+
+{% block content %}
+<!-- Add CSS for chart container -->
+<style>
+    .chart-container {
+        height: 400px;
+        position: relative;
+        margin-bottom: 2rem;
+    }
+    .project-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .project-card {
+        transition: all 0.3s ease;
+    }
+    .project-card:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>My Projects</h2>
+    <a href="{% url 'project_create' %}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Create New Project
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Project Timeline</h4>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="timeline-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">Project List</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group project-list">
+                    {% for project in projects %}
+                        <a href="{% url 'project_detail' project.id %}" 
+                           class="list-group-item list-group-item-action project-card">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-1">{{ project.name }}</h5>
+                            </div>
+                            <small class="text-muted d-block">
+                                Start: {{ project.start_date|date:"M d, Y" }}
+                            </small>
+                            <small class="text-muted d-block">
+                                End: {{ project.end_date|date:"M d, Y" }}
+                            </small>
+                        </a>
+                    {% empty %}
+                        <div class="text-center p-4">
+                            <p class="text-muted mb-0">No projects yet.</p>
+                            <small>Create your first project to get started!</small>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const ctx = document.getElementById('timeline-chart').getContext('2d');
+            const projects = JSON.parse('{{ projects_json|escapejs }}');
+
+            // Check if projects exist
+            if (!projects || !projects.length) {
+                return; // Don't initialize chart if no projects
+            }
+
+            // Sort projects by start date
+            projects.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+
+            const projectData = {
+                datasets: [{
+                    label: 'Projects Timeline',
+                    data: projects.map(p => ({
+                        x: [new Date(p.start_date), new Date(p.end_date)],
+                        y: p.name
+                    })),
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.8
+                }]
+            };
+
+            // Destroy existing chart if it exists
+            if (window.timelineChart instanceof Chart) {
+                window.timelineChart.destroy();
+            }
+
+            window.timelineChart = new Chart(ctx, {
+                type: 'bar',
+                data: projectData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            position: 'top',
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d, yyyy'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Timeline',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Projects',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    return tooltipItems[0].raw.y;
+                                },
+                                label: function(context) {
+                                    const data = context.raw;
+                                    const start = new Date(data.x[0]).toLocaleDateString(undefined, {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                    const end = new Date(data.x[1]).toLocaleDateString(undefined, {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                    });
+                                    return [`Start: ${start}`, `End: ${end}`];
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error initializing chart:', error);
+            // Display a user-friendly error message
+            const chartContainer = document.querySelector('.chart-container');
+            if (chartContainer) {
+                chartContainer.innerHTML = `
+                    <div class="alert alert-warning text-center">
+                        <p>Unable to load the timeline chart.</p>
+                        <small>Please try refreshing the page.</small>
+                    </div>
+                `;
+            }
+        }
+    });
+</script>
+{% endblock %}
