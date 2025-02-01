@@ -8,6 +8,8 @@ from .forms import ProjectForm, MilestoneForm
 import json
 from django.core.serializers import serialize
 from django.core.serializers.json import DjangoJSONEncoder
+from django.contrib.auth import logout
+from django.contrib import messages
 
 @login_required
 def dashboard(request):
@@ -91,3 +93,8 @@ def project_delete(request, project_id):
     return render(request, 'timeline_app/project_confirm_delete.html', {
         'project': project
     })
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, 'You have been logged out successfully.')
+    return redirect('login')
