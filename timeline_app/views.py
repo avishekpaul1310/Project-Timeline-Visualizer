@@ -41,7 +41,7 @@ def project_create(request):
 def milestone_create(request, project_id):
     project = get_object_or_404(Project, id=project_id, user=request.user)
     if request.method == 'POST':
-        form = MilestoneForm(request.POST)
+        form = MilestoneForm(request.POST, project=project)
         if form.is_valid():
             milestone = form.save(commit=False)
             milestone.project = project
@@ -49,7 +49,7 @@ def milestone_create(request, project_id):
             messages.success(request, 'Milestone added successfully!')
             return redirect('timeline_app:project_detail', project_id=project.id)
     else:
-        form = MilestoneForm()
+        form = MilestoneForm(project=project)
     return render(request, 'timeline_app/milestone_form.html', {'form': form, 'project': project})
 
 @login_required

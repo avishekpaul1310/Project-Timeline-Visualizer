@@ -29,6 +29,21 @@ class MilestoneForm(forms.ModelForm):
             'due_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        self.project = kwargs.pop('project', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_due_date(self):
+        due_date = self.cleaned_data.get('due_date')
+        project = self.project or (self.instance.project if self.instance else None)
+
+        if project and due_date:
+            if due_date < project.start_date or due_date > project.end_date:
+                raise ValidationError(
+                    "Milestone due date must be within project start and end dates"
+                )
+        return due_date
+
     def clean_due_date(self):
         due_date = self.cleaned_data.get('due_date')
         project = self.instance.project if self.instance else None

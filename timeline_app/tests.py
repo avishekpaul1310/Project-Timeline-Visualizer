@@ -101,15 +101,14 @@ class TimelineAppTests(TestCase):
         self.client.login(username='testuser', password='testpass123')
         milestone_data = {
             'name': 'New Milestone',
-            'due_date': (timezone.now() + timedelta(days=15)).date().isoformat()
-            }
+            'due_date': (self.project.start_date + timedelta(days=15)).isoformat()
+        }
         response = self.client.post(
             reverse('timeline_app:milestone_create', kwargs={'project_id': self.project.id}),
-        milestone_data
-       )
+            milestone_data
+        )
         self.assertEqual(response.status_code, 302)  # Should redirect after creation
         self.assertTrue(Milestone.objects.filter(name='New Milestone').exists())
-
     def test_invalid_date_range(self):
         """Test validation for invalid date ranges"""
         self.client.login(username='testuser', password='testpass123')
@@ -118,6 +117,11 @@ class TimelineAppTests(TestCase):
             'start_date': '2025-03-01',  # Start date after end date
             'end_date': '2025-02-01'
         }
-        response = self.client.post(reverse('timeline_app:project_create'), project_data)
+        response = self.client.post(
+            reverse('timeline_app:project_create'),
+            project_data,
+            follow=True  # Follow the redirect
+        )
         self.assertEqual(response.status_code, 200)  # Should stay on form
         self.assertFalse(Project.objects.filter(name='Invalid Project').exists())
+        self.assertContains(response, "End date cannot be before start date")
