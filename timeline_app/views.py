@@ -47,7 +47,7 @@ def milestone_create(request, project_id):
             milestone.project = project
             milestone.save()
             messages.success(request, 'Milestone added successfully!')
-            return redirect('project_detail', project_id=project.id)
+            return redirect('timeline_app:project_detail', project_id=project.id)
     else:
         form = MilestoneForm()
     return render(request, 'timeline_app/milestone_form.html', {'form': form, 'project': project})
@@ -69,7 +69,7 @@ def project_update(request, project_id):
         if form.is_valid():
             form.save()
             messages.success(request, 'Project updated successfully!')
-            return redirect('project_detail', project_id=project.id)
+            return redirect('timeline_app:project_detail', project_id=project.id)
     else:
         form = ProjectForm(instance=project)
     return render(request, 'timeline_app/project_form.html', {
@@ -84,7 +84,7 @@ def project_delete(request, project_id):
     if request.method == 'POST':
         project.delete()
         messages.success(request, 'Project deleted successfully!')
-        return redirect('dashboard')
+        return redirect('timeline_app:dashboard')
     return render(request, 'timeline_app/project_confirm_delete.html', {
         'project': project
     })
