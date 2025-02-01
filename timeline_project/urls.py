@@ -22,8 +22,10 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('timeline_app.urls')),
+    path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('login/', auth_views.LoginView.as_view(template_name='timeline_app/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('', views.dashboard, name='dashboard'),
     path('project/create/', views.project_create, name='project_create'),
     path('project/<int:project_id>/', views.project_detail, name='project_detail'),
