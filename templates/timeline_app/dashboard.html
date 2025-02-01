@@ -1,0 +1,83 @@
+{% extends "timeline_app/base.html" %}
+{% block title %}Dashboard - Timeline Visualizer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Projects Timeline</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'timeline_app:project_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Project
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col">
+        <div id="timeline-chart"></div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <h2>Your Projects</h2>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>{{ project.name }}</td>
+                        <td>{{ project.start_date }}</td>
+                        <td>{{ project.end_date }}</td>
+                        <td>
+                            <a href="{% url 'timeline_app:project_detail' project.id %}" class="btn btn-sm btn-info">View</a>
+                            <a href="{% url 'timeline_app:project_update' project.id %}" class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{% url 'timeline_app:project_delete' project.id %}" class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">No projects yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+    const projects = "{{ projects_json|safe }}";
+    
+    const data = [{
+        type: 'gantt',
+        x: projects.map(p => [p.start_date, p.end_date]),
+        y: projects.map(p => p.name),
+        mode: 'lines',
+        name: 'Projects'
+    }];
+
+    const layout = {
+        title: 'Project Timeline',
+        height: 400,
+        xaxis: {
+            type: 'date'
+        }
+    };
+
+    Plotly.newPlot('timeline-chart', data, layout);
+</script>
+{% endblock %}

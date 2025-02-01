@@ -1,1 +1,17 @@
 /LICENSE.txt /ReleaseNotes.html /bin /cmd /dev /etc /git-bash.exe /git-cmd.exe /mingw64 /proc /tmp /unins000.dat /unins000.exe /unins000.msg /usr Main stylesheet for timeline visualizer static/ timeline_app/ timeline_project/ venv/
+/* Add custom styles here */
+.navbar {
+    margin-bottom: 2rem;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+}
+
+#timeline-chart {
+    min-height: 400px;
+}

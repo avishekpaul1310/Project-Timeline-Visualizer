@@ -32,7 +32,7 @@ def project_create(request):
             project.user = request.user
             project.save()
             messages.success(request, 'Project created successfully!')
-            return redirect('dashboard')
+            return redirect('timeline_app:dashboard')
     else:
         form = ProjectForm()
     return render(request, 'timeline_app/project_form.html', {'form': form})
