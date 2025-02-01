@@ -101,14 +101,13 @@ class TimelineAppTests(TestCase):
         self.client.login(username='testuser', password='testpass123')
         milestone_data = {
             'name': 'New Milestone',
-            'due_date': '2025-02-15',
-            'project': self.project.id
-        }
+            'due_date': (timezone.now() + timedelta(days=15)).date().isoformat()
+            }
         response = self.client.post(
             reverse('timeline_app:milestone_create', kwargs={'project_id': self.project.id}),
-            milestone_data
-        )
-        self.assertEqual(response.status_code, 302)
+        milestone_data
+       )
+        self.assertEqual(response.status_code, 302)  # Should redirect after creation
         self.assertTrue(Milestone.objects.filter(name='New Milestone').exists())
 
     def test_invalid_date_range(self):
