@@ -16,25 +16,37 @@ def dashboard(request):
     owned_projects = Project.objects.filter(user=request.user, is_archived=False)
     shared_projects = Project.objects.filter(collaborators=request.user, is_archived=False)
     
-    # Combine and serialize projects for the chart
-    all_projects = list(owned_projects) + list(shared_projects)
+    # Make sure there's no duplication here by using a set or checking IDs
+    project_ids = set()
+    all_projects = []
+    
+    for p in owned_projects:
+        if p.id not in project_ids:
+            all_projects.append(p)
+            project_ids.add(p.id)
+    
+    for p in shared_projects:
+        if p.id not in project_ids:
+            all_projects.append(p)
+            project_ids.add(p.id)
     
     projects_list = [{
-    'name': p.name,
-    'start_date': p.start_date.isoformat(), 
-    'end_date': p.end_date.isoformat(),
-    'is_owned': p.user == request.user
-} for p in all_projects]
+        'name': p.name,
+        'start_date': p.start_date.isoformat(),
+        'end_date': p.end_date.isoformat(),
+        'id': p.id
+    } for p in all_projects]
     
-    # Print for debugging
     print(f"Number of projects: {len(all_projects)}")
-    print(f"Project data: {projects_list}")
+    for p in projects_list:
+        print(f"Project: {p['name']}, ID: {p['id']}, Start: {p['start_date']}, End: {p['end_date']}")
+    
+    json_data = json.dumps(projects_list, cls=DjangoJSONEncoder)
+    print(f"JSON data: {json_data}")
     
     return render(request, 'timeline_app/dashboard.html', {
         'projects': all_projects,
-        'owned_projects': owned_projects,
-        'shared_projects': shared_projects,
-        'projects_json': json.dumps(projects_list, cls=DjangoJSONEncoder)
+        'projects_json': json_data
     })
 
 @login_required
@@ -280,7 +292,14 @@ def analytics(request):
     # Get user's projects (both owned and shared)
     owned_projects = Project.objects.filter(user=request.user)
     shared_projects = Project.objects.filter(collaborators=request.user)
-    all_projects = list(owned_projects) + list(shared_projects)
+    
+    # Use a dictionary to prevent duplicates
+    project_dict = {p.id: p for p in owned_projects}
+    for p in shared_projects:
+        if p.id not in project_dict:
+            project_dict[p.id] = p
+            
+    all_projects = list(project_dict.values())
     
     # Basic statistics
     total_projects = len(all_projects)

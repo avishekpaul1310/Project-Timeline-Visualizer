@@ -79,33 +79,42 @@
     </div>
 </div>
 
+
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         try {
             const ctx = document.getElementById('timeline-chart').getContext('2d');
-            // Parse the JSON data safely
-            const projectsData = '{{ projects_json|escapejs }}';
-            const projects = JSON.parse(projectsData);
-
-            // Debug - check what data we're getting
-            console.log('Projects data:', projects);
-
+            const projectsRaw = '{{ projects_json|escapejs }}';
+            console.log("Raw JSON string:", projectsRaw);
+            
+            const projects = JSON.parse(projectsRaw);
+            console.log("Parsed projects data:", projects);
+            
             // Check if projects exist
             if (!projects || !projects.length) {
-                console.log('No projects found');
-                return; // Don't initialize chart if no projects
+                console.log("No projects found");
+                return;
             }
 
-            // Sort projects by start date
-            projects.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
-
+            // Manually construct data points
+            const dataPoints = projects.map(p => {
+                console.log(`Processing project: ${p.name}`);
+                const startDate = new Date(p.start_date);
+                const endDate = new Date(p.end_date); 
+                console.log(`Start date: ${startDate}, End date: ${endDate}`);
+                
+                return {
+                    x: [startDate, endDate],
+                    y: p.name
+                };
+            });
+            
+            console.log("Data points:", dataPoints);
+            
             const projectData = {
                 datasets: [{
                     label: 'Projects Timeline',
-                    data: projects.map(p => ({
-                        x: [new Date(p.start_date), new Date(p.end_date)],
-                        y: p.name
-                    })),
+                    data: dataPoints,
                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
                     borderColor: 'rgba(54, 162, 235, 1)',
                     borderWidth: 1,
@@ -113,10 +122,6 @@
                     barPercentage: 0.8
                 }]
             };
-            // Destroy existing chart if it exists
-            if (window.timelineChart instanceof Chart) {
-                window.timelineChart.destroy();
-            }
 
             window.timelineChart = new Chart(ctx, {
                 type: 'bar',
@@ -141,71 +146,19 @@
                                 font: {
                                     weight: 'bold'
                                 }
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Projects',
-                                font: {
-                                    weight: 'bold'
-                                }
-                            },
-                            grid: {
-                                display: false
                             }
                         }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            padding: 12,
-                            titleFont: {
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            callbacks: {
-                                title: function (tooltipItems) {
-                                    return tooltipItems[0].raw.y;
-                                },
-                                label: function (context) {
-                                    const data = context.raw;
-                                    const start = new Date(data.x[0]).toLocaleDateString(undefined, {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                    });
-                                    const end = new Date(data.x[1]).toLocaleDateString(undefined, {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                    });
-                                    return [`Start: ${start}`, `End: ${end}`];
-                                }
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
                     }
                 }
             });
         } catch (error) {
             console.error('Error initializing chart:', error);
-            // Display a user-friendly error message
             const chartContainer = document.querySelector('.chart-container');
             if (chartContainer) {
                 chartContainer.innerHTML = `
                     <div class="alert alert-warning text-center">
-                        <p>Unable to load the timeline chart.</p>
-                        <small>Please try refreshing the page.</small>
+                        <p>Unable to load the timeline chart. Error: ${error.message}</p>
+                        <small>Please check console for details.</small>
                     </div>
                 `;
             }
