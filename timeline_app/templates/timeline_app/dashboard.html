@@ -20,6 +20,36 @@
         background-color: #f8f9fa;
         transform: translateX(5px);
     }
+    .timeline-block {
+        margin: 10px 0;
+        border-left: 3px solid #ccc;
+        padding-left: 15px;
+        position: relative;
+    }
+    .timeline-date {
+        font-size: 0.85rem;
+        color: #666;
+    }
+    .timeline-marker {
+        position: absolute;
+        left: -8px;
+        top: 0;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #4e73df;
+    }
+    .timeline-bar {
+        height: 24px;
+        background-color: rgba(78, 115, 223, 0.2);
+        border-left: 4px solid #4e73df;
+        border-radius: 4px;
+        margin: 5px 0;
+        padding: 2px 10px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -41,9 +71,18 @@
                 <h4 class="card-title mb-0">Project Timeline</h4>
             </div>
             <div class="card-body">
-                <div class="chart-container">
-                    <canvas id="timeline-chart"></canvas>
-                </div>
+                {% if projects %}
+                    <div id="simple-timeline" class="p-3">
+                        <!-- Timeline will be populated by JavaScript -->
+                    </div>
+                {% else %}
+                    <div class="text-center p-5">
+                        <p class="text-muted">No projects to display on timeline.</p>
+                        <a href="{% url 'timeline_app:project_create' %}" class="btn btn-sm btn-primary mt-2">
+                            Create Your First Project
+                        </a>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -79,88 +118,69 @@
     </div>
 </div>
 
-
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        try {
-            const ctx = document.getElementById('timeline-chart').getContext('2d');
-            const projectsRaw = '{{ projects_json|escapejs }}';
-            console.log("Raw JSON string:", projectsRaw);
-            
-            const projects = JSON.parse(projectsRaw);
-            console.log("Parsed projects data:", projects);
-            
-            // Check if projects exist
-            if (!projects || !projects.length) {
-                console.log("No projects found");
-                return;
-            }
-
-            // Manually construct data points
-            const dataPoints = projects.map(p => {
-                console.log(`Processing project: ${p.name}`);
-                const startDate = new Date(p.start_date);
-                const endDate = new Date(p.end_date); 
-                console.log(`Start date: ${startDate}, End date: ${endDate}`);
+        // Get the raw project data
+        const projectsRaw = '{{ projects_json|escapejs }}';
+        
+        // Only proceed if we have project data
+        if (projectsRaw) {
+            try {
+                const projects = JSON.parse(projectsRaw);
                 
-                return {
-                    x: [startDate, endDate],
-                    y: p.name
-                };
-            });
-            
-            console.log("Data points:", dataPoints);
-            
-            const projectData = {
-                datasets: [{
-                    label: 'Projects Timeline',
-                    data: dataPoints,
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    barPercentage: 0.8
-                }]
-            };
-
-            window.timelineChart = new Chart(ctx, {
-                type: 'bar',
-                data: projectData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
-                    scales: {
-                        x: {
-                            position: 'top',
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                displayFormats: {
-                                    day: 'MMM d, yyyy'
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Timeline',
-                                font: {
-                                    weight: 'bold'
-                                }
-                            }
-                        }
-                    }
+                // Make sure we have projects to display
+                if (projects && projects.length > 0) {
+                    // Sort projects by start date
+                    projects.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                    
+                    const timelineContainer = document.getElementById('simple-timeline');
+                    
+                    // Clear any existing content
+                    timelineContainer.innerHTML = '';
+                    
+                    // Add timeline header with date range
+                    const firstDate = new Date(projects[0].start_date);
+                    const lastDate = new Date(projects[projects.length - 1].end_date);
+                    
+                    const headerElement = document.createElement('div');
+                    headerElement.className = 'mb-4';
+                    headerElement.innerHTML = `
+                        <h5>Date Range: ${firstDate.toLocaleDateString()} - ${lastDate.toLocaleDateString()}</h5>
+                    `;
+                    timelineContainer.appendChild(headerElement);
+                    
+                    // Create a simplified timeline
+                    projects.forEach(project => {
+                        const startDate = new Date(project.start_date);
+                        const endDate = new Date(project.end_date);
+                        
+                        // Calculate duration in days
+                        const duration = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+                        
+                        const projectElement = document.createElement('div');
+                        projectElement.className = 'timeline-block';
+                        projectElement.innerHTML = `
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-date">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()} (${duration} days)</div>
+                            <div class="timeline-bar">
+                                <a href="/project/${project.id}/">${project.name}</a>
+                            </div>
+                        `;
+                        
+                        timelineContainer.appendChild(projectElement);
+                    });
                 }
-            });
-        } catch (error) {
-            console.error('Error initializing chart:', error);
-            const chartContainer = document.querySelector('.chart-container');
-            if (chartContainer) {
-                chartContainer.innerHTML = `
-                    <div class="alert alert-warning text-center">
-                        <p>Unable to load the timeline chart. Error: ${error.message}</p>
-                        <small>Please check console for details.</small>
-                    </div>
-                `;
+            } catch (error) {
+                console.error('Error processing timeline data:', error);
+                const errorElement = document.createElement('div');
+                errorElement.className = 'alert alert-warning';
+                errorElement.textContent = 'Unable to display timeline. Please refresh the page or try again later.';
+                
+                const timelineContainer = document.getElementById('simple-timeline');
+                if (timelineContainer) {
+                    timelineContainer.innerHTML = '';
+                    timelineContainer.appendChild(errorElement);
+                }
             }
         }
     });

@@ -13,10 +13,11 @@ from .utils import check_upcoming_milestones
 
 @login_required
 def dashboard(request):
+    # Get active projects (not archived)
     owned_projects = Project.objects.filter(user=request.user, is_archived=False)
     shared_projects = Project.objects.filter(collaborators=request.user, is_archived=False)
     
-    # Make sure there's no duplication here by using a set or checking IDs
+    # Combine owned and shared projects without duplicates
     project_ids = set()
     all_projects = []
     
@@ -30,19 +31,23 @@ def dashboard(request):
             all_projects.append(p)
             project_ids.add(p.id)
     
-    projects_list = [{
-        'name': p.name,
-        'start_date': p.start_date.isoformat(),
-        'end_date': p.end_date.isoformat(),
-        'id': p.id
-    } for p in all_projects]
+    # Create a list of project data for the timeline
+    projects_list = []
+    for p in all_projects:
+        # Ensure dates are properly formatted for JavaScript
+        projects_list.append({
+            'name': p.name,
+            'start_date': p.start_date.strftime('%Y-%m-%d'),  # Use consistent format
+            'end_date': p.end_date.strftime('%Y-%m-%d'),      # Use consistent format
+            'id': p.id
+        })
     
-    print(f"Number of projects: {len(all_projects)}")
-    for p in projects_list:
-        print(f"Project: {p['name']}, ID: {p['id']}, Start: {p['start_date']}, End: {p['end_date']}")
+    # Sort projects by start date for better display
+    projects_list.sort(key=lambda x: x['start_date'])
     
-    json_data = json.dumps(projects_list, cls=DjangoJSONEncoder)
-    print(f"JSON data: {json_data}")
+    # Convert to JSON
+    import json
+    json_data = json.dumps(projects_list)
     
     return render(request, 'timeline_app/dashboard.html', {
         'projects': all_projects,
