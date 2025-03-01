@@ -12,6 +12,7 @@ class Project(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_archived = models.BooleanField(default=False)
+    description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -22,6 +23,8 @@ class Milestone(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    description = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return self.name

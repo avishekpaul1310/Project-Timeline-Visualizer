@@ -9,6 +9,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.contrib.auth import logout
 from django.contrib.auth.models import User
 from django.contrib import messages
+from .utils import check_upcoming_milestones
 
 @login_required
 def dashboard(request):
@@ -150,14 +151,51 @@ def remove_collaborator(request, project_id, user_id):
     
     return redirect('timeline_app:share_project', project_id=project.id)
 
-# Helper functions
+@login_required
 def send_collaboration_notification(collaborator, project, from_user):
-    from .models import Notification
+    
     Notification.objects.create(
         user=collaborator,
+        notification_type='project_shared', 
         message=f"{from_user.username} has shared the project '{project.name}' with you",
         project=project
     )
+
+def export_project_to_csv(project):
+    import csv
+    from django.http import HttpResponse
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{project.name}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Project Name', 'Start Date', 'End Date', 'Description'])
+    writer.writerow([project.name, project.start_date, project.end_date, project.description])
+    
+    writer.writerow([])  # Empty row for separation
+    writer.writerow(['Milestone', 'Due Date', 'Description', 'Status'])
+    
+    for milestone in project.milestone_set.all():
+        writer.writerow([milestone.title, milestone.due_date, milestone.description, milestone.status])
+    
+    return response
+
+def export_project_to_pdf(request, project):
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+    from weasyprint import HTML
+    import tempfile
+    
+    html_string = render_to_string('timeline_app/project_pdf_template.html', {
+        'project': project,
+        'milestones': project.milestone_set.all(),
+    })
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{project.name}.pdf"'
+    
+    HTML(string=html_string).write_pdf(response)
+    return response
 
 # timeline_app/views.py
 @login_required
@@ -222,51 +260,16 @@ def export_project(request, project_id, format_type):
         return redirect('timeline_app:dashboard')
     
     if format_type == 'csv':
+        # Use the local version defined in this file
         return export_project_to_csv(project)
     elif format_type == 'pdf':
+        # Use the local version defined in this file
         return export_project_to_pdf(request, project)
     else:
         messages.error(request, f"Unknown export format: {format_type}")
         return redirect('timeline_app:project_detail', project_id=project.id)
-    
-def export_project_to_csv(project):
-    import csv
-    from django.http import HttpResponse
-    
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="{project.name}.csv"'
-    
-    writer = csv.writer(response)
-    writer.writerow(['Project Name', 'Start Date', 'End Date', 'Description'])
-    writer.writerow([project.name, project.start_date, project.end_date, project.description])
-    
-    writer.writerow([])  # Empty row as separator
-    writer.writerow(['Milestone Name', 'Due Date', 'Description', 'Status'])
-    
-    for milestone in project.milestone_set.all():
-        writer.writerow([milestone.name, milestone.due_date, milestone.description, milestone.status])
-    
-    return response
 
-def export_project_to_pdf(request, project):
-    from django.http import HttpResponse
-    from django.template.loader import render_to_string
-    from weasyprint import HTML
-    import tempfile
-    
-    html_string = render_to_string('timeline_app/project_pdf_template.html', {
-        'project': project,
-        'milestones': project.milestone_set.all(),
-    })
-    
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{project.name}.pdf"'
-    
-    # Generate PDF from HTML
-    HTML(string=html_string).write_pdf(response)
-    
-    return response
-    
+        
 @login_required
 def analytics(request):
     # Get user's projects (both owned and shared)

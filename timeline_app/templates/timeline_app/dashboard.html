@@ -55,7 +55,7 @@
             <div class="card-body">
                 <div class="list-group project-list">
                     {% for project in projects %}
-                        <a href="{% url 'project_detail' project.id %}" 
+                        <a href="{% url 'timeline_app:project_detail' project.id %}" 
                            class="list-group-item list-group-item-action project-card">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="mb-1">{{ project.name }}</h5>
