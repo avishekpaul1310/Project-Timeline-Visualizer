@@ -1,0 +1,152 @@
+<!-- templates/timeline_app/analytics.html -->
+{% extends 'timeline_app/base.html' %}
+{% block title %}Analytics - Timeline Visualizer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Project Analytics</h1>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Project Stats Cards -->
+    <div class="col-md-4 mb-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Projects</h5>
+                <h2 class="display-4">{{ total_projects }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">Active Projects</h5>
+                <h2 class="display-4">{{ active_projects }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-secondary text-white h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title">Archived Projects</h5>
+                <h2 class="display-4">{{ archived_projects }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Project Creation Over Time Chart -->
+    <div class="col-md-8 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Projects Created Over Time</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="projectsChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Milestone Stats -->
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Milestone Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="milestoneChart" height="260"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Continuing templates/timeline_app/analytics.html -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Projects Over Time Chart
+        const projectCtx = document.getElementById('projectsChart').getContext('2d');
+        const projectsChart = new Chart(projectCtx, {
+            type: 'line',
+            data: {
+                labels: JSON.parse('{{ month_labels|safe }}'),
+                datasets: [{
+                    label: 'Projects Created',
+                    data: JSON.parse('{{ month_counts|safe }}'),
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Projects: ${context.raw}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Milestone Status Chart
+        const milestoneCtx = document.getElementById('milestoneChart').getContext('2d');
+        const milestoneChart = new Chart(milestoneCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Upcoming', 'Past', 'Due Today'],
+                datasets: [{
+                    data: [
+                        "{{ milestone_stats.upcoming|default:0 }}", 
+                        "{{ milestone_stats.past|default:0 }}", 
+                        "{{ milestone_stats.today|default:0 }}"
+                    ],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)',  // Teal - Upcoming
+                        'rgba(255, 99, 132, 0.7)',  // Red - Past
+                        'rgba(255, 206, 86, 0.7)',  // Yellow - Today
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(255, 206, 86, 1)',
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const total = "{{ milestone_stats.total|default:0 }}";
+                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return `${context.label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

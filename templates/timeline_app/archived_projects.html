@@ -1,0 +1,43 @@
+<!-- templates/timeline_app/archived_projects.html -->
+{% extends 'timeline_app/base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>Archived Projects</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'timeline_app:dashboard' %}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Active Projects
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    {% for project in archived_projects %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ project.name }}</h5>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            From: {{ project.start_date }}<br>
+                            To: {{ project.end_date }}
+                        </small>
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'timeline_app:project_detail' project.id %}" class="btn btn-primary">View Details</a>
+                        <a href="{% url 'timeline_app:unarchive_project' project.id %}" class="btn btn-success">Unarchive</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col">
+            <div class="alert alert-info text-center">
+                <p>No archived projects.</p>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

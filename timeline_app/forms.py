@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import Project, Milestone
+from django.contrib.auth.models import User
 
 class ProjectForm(forms.ModelForm):
     class Meta:
@@ -43,3 +44,12 @@ class MilestoneForm(forms.ModelForm):
                     "Milestone due date must be within project start and end dates"
                 )
         return due_date
+    
+class ProjectShareForm(forms.Form):
+    email = forms.EmailField(label="Collaborator's email")
+    
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if not User.objects.filter(email=email).exists():
+            raise forms.ValidationError("No user with this email address was found.")
+        return email

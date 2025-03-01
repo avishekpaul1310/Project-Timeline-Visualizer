@@ -12,6 +12,28 @@
             <i class="fas fa-plus"></i> Add Milestone
         </a>
     </div>
+    <!-- In templates/timeline_app/project_detail.html -->
+<!-- In templates/timeline_app/project_detail.html -->
+<div class="btn-group">
+    <a href="{% url 'timeline_app:project_update' project.id %}" class="btn btn-primary">
+        <i class="fas fa-edit"></i> Edit
+    </a>
+    <a href="{% url 'timeline_app:share_project' project.id %}" class="btn btn-info">
+        <i class="fas fa-share-alt"></i> Share
+    </a>
+    {% if project.is_archived %}
+        <a href="{% url 'timeline_app:unarchive_project' project.id %}" class="btn btn-success">
+            <i class="fas fa-box-open"></i> Unarchive
+        </a>
+    {% else %}
+        <a href="{% url 'timeline_app:archive_project' project.id %}" class="btn btn-secondary">
+            <i class="fas fa-archive"></i> Archive
+        </a>
+    {% endif %}
+    <a href="{% url 'timeline_app:project_delete' project.id %}" class="btn btn-danger">
+        <i class="fas fa-trash-alt"></i> Delete
+    </a>
+</div>
 </div>
 
 <div class="row mb-4">
