@@ -20,13 +20,18 @@ def dashboard(request):
     all_projects = list(owned_projects) + list(shared_projects)
     
     projects_list = [{
-        'name': p.name,
-        'start_date': p.start_date.isoformat(),
-        'end_date': p.end_date.isoformat(),
-        'is_owned': p.user == request.user
-    } for p in all_projects]
+    'name': p.name,
+    'start_date': p.start_date.isoformat(), 
+    'end_date': p.end_date.isoformat(),
+    'is_owned': p.user == request.user
+} for p in all_projects]
+    
+    # Print for debugging
+    print(f"Number of projects: {len(all_projects)}")
+    print(f"Project data: {projects_list}")
     
     return render(request, 'timeline_app/dashboard.html', {
+        'projects': all_projects,
         'owned_projects': owned_projects,
         'shared_projects': shared_projects,
         'projects_json': json.dumps(projects_list, cls=DjangoJSONEncoder)
