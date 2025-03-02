@@ -17,42 +17,23 @@ from django.utils.html import strip_tags
 
 @login_required
 def dashboard(request):
+    from django.db.models import Q
+    
     print(f"Fetching projects for user: {request.user.username} (ID: {request.user.id})")
     
-    # Get active projects (not archived)
-    owned_projects = Project.objects.filter(user=request.user, is_archived=False)
-    print(f"Owned projects count: {owned_projects.count()}")
-    for p in owned_projects:
-        print(f"Owned project: {p.id} - {p.name}")
+    # Get all projects (both owned and shared) in a single query with distinct
+    all_projects = Project.objects.filter(
+        Q(user=request.user) | Q(collaborators=request.user),
+        is_archived=False
+    ).distinct()
     
-    shared_projects = Project.objects.filter(collaborators=request.user, is_archived=False)
-    print(f"Shared projects count: {shared_projects.count()}")
-    for p in shared_projects:
-        print(f"Shared project: {p.id} - {p.name}")
-    
-    # Combine owned and shared projects without duplicates
-    project_ids = set()
-    all_projects = []
-    
-    # First add owned projects
-    for p in owned_projects:
-        all_projects.append(p)
-        project_ids.add(p.id)
-    
-    # Then add shared projects if not already added
-    for p in shared_projects:
-        if p.id not in project_ids:
-            all_projects.append(p)
-            project_ids.add(p.id)
-    
-    print(f"Combined projects count: {len(all_projects)}")
+    print(f"All projects count: {all_projects.count()}")
     for p in all_projects:
-        print(f"Combined project: {p.id} - {p.name} - Owner: {p.user.username}")
+        print(f"Project: {p.id} - {p.name} - Owner: {p.user.username}")
     
     # Create a list of project data for the timeline
     projects_list = []
     for p in all_projects:
-        # Ensure dates are properly formatted for JavaScript
         projects_list.append({
             'name': p.name,
             'start_date': p.start_date.strftime('%Y-%m-%d'),
@@ -88,11 +69,19 @@ def project_create(request):
 @login_required
 def project_detail(request, project_id):
     # Get the project if the user is either the owner or a collaborator
-    project_queryset = Project.objects.filter(id=project_id).filter(
+    # Use distinct() to avoid duplicate results
+    project_queryset = Project.objects.filter(
+        models.Q(id=project_id),
         models.Q(user=request.user) | models.Q(collaborators=request.user)
-    )
+    ).distinct()
     
-    project = get_object_or_404(project_queryset)
+    project = get_object_or_404(Project, id=project_id)
+    
+    # Check if the user has permission to view this project
+    if project.user != request.user and request.user not in project.collaborators.all():
+        messages.error(request, "You don't have permission to view this project.")
+        return redirect('timeline_app:dashboard')
+    
     milestones = project.milestone_set.all()
     
     # Add a flag to indicate if the current user is the owner
@@ -106,12 +95,13 @@ def project_detail(request, project_id):
 
 @login_required
 def milestone_create(request, project_id):
-    # Allow both owner and collaborators to add milestones
-    project_queryset = Project.objects.filter(id=project_id).filter(
-        models.Q(user=request.user) | models.Q(collaborators=request.user)
-    )
+    # Get the base project by ID
+    project = get_object_or_404(Project, id=project_id)
     
-    project = get_object_or_404(project_queryset)
+    # Check if the user has permission to add milestones
+    if project.user != request.user and request.user not in project.collaborators.all():
+        messages.error(request, "You don't have permission to add milestones to this project.")
+        return redirect('timeline_app:dashboard')
     
     if request.method == 'POST':
         form = MilestoneForm(request.POST, project=project)
@@ -268,15 +258,13 @@ def remove_collaborator(request, project_id, user_id):
 
 @login_required
 def export_project(request, project_id, format_type):
-    # Allow both owner and collaborators to export projects
-    # Using filter first, then get_object_or_404 on the filtered queryset
-    project_queryset = Project.objects.filter(
-        id=project_id
-    ).filter(
-        models.Q(user=request.user) | models.Q(collaborators=request.user)
-    )
+    # Get the base project by ID
+    project = get_object_or_404(Project, id=project_id)
     
-    project = get_object_or_404(project_queryset)
+    # Check if the user has permission to export this project
+    if project.user != request.user and request.user not in project.collaborators.all():
+        messages.error(request, "You don't have permission to export this project.")
+        return redirect('timeline_app:dashboard')
     
     if format_type == 'csv':
         from .utils import export_project_to_csv
