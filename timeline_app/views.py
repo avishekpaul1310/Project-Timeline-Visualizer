@@ -152,12 +152,51 @@ def share_project(request, project_id):
                     messages.success(request, f"Project shared with {collaborator.username} successfully!")
                     
                     # Create a notification for the collaborator
-                    Notification.objects.create(
+                    notification = Notification.objects.create(
                         user=collaborator,
                         notification_type='project_shared', 
                         message=f"{request.user.username} has shared the project '{project.name}' with you",
                         project=project
                     )
+                    
+                    print(f"Created notification ID {notification.id} for user {collaborator.username}")
+                    
+                    # Send email notification
+                    from django.core.mail import send_mail
+                    from django.template.loader import render_to_string
+                    from django.utils.html import strip_tags
+
+                    # Email subject
+                    subject = f"{request.user.username} shared a project with you: {project.name}"
+
+                    # Get the site's domain
+                    site_domain = request.get_host()
+                    
+                    # Create email context
+                    context = {
+                        'username': collaborator.username,
+                        'shared_by': request.user.username,
+                        'project_name': project.name,
+                        'login_url': f"http://{site_domain}/accounts/login/"
+                    }
+
+                    # Render HTML content
+                    html_message = render_to_string('timeline_app/email/project_shared.html', context)
+                    plain_message = strip_tags(html_message)
+
+                    # Send email
+                    try:
+                        send_mail(
+                            subject=subject,
+                            message=plain_message,
+                            from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings
+                            recipient_list=[collaborator.email],
+                            html_message=html_message,
+                            fail_silently=False
+                        )
+                        print(f"Email sent to {collaborator.email}")
+                    except Exception as e:
+                        print(f"Error sending email: {e}")
                 
                 return redirect('timeline_app:project_detail', project_id=project.id)
                 
@@ -230,10 +269,15 @@ def export_project_to_pdf(request, project):
     HTML(string=html_string).write_pdf(response)
     return response
 
-# timeline_app/views.py
 @login_required
 def notifications(request):
+    # Get all notifications for the current user
     user_notifications = Notification.objects.filter(user=request.user)
+    
+    # Log how many notifications were found (for debugging)
+    print(f"Found {user_notifications.count()} notifications for user {request.user.username}")
+    
+    # Count unread notifications
     unread_count = user_notifications.filter(is_read=False).count()
     
     return render(request, 'timeline_app/notifications.html', {
