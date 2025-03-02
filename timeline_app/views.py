@@ -10,6 +10,10 @@ from django.contrib.auth import logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from .utils import check_upcoming_milestones
+from django.db import models
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 @login_required
 def dashboard(request):
@@ -46,7 +50,6 @@ def dashboard(request):
     projects_list.sort(key=lambda x: x['start_date'])
     
     # Convert to JSON
-    import json
     json_data = json.dumps(projects_list)
     
     return render(request, 'timeline_app/dashboard.html', {
@@ -69,35 +72,65 @@ def project_create(request):
     return render(request, 'timeline_app/project_form.html', {'form': form})
 
 @login_required
+def project_detail(request, project_id):
+    # Get the project if the user is either the owner or a collaborator
+    project_queryset = Project.objects.filter(id=project_id).filter(
+        models.Q(user=request.user) | models.Q(collaborators=request.user)
+    )
+    
+    project = get_object_or_404(project_queryset)
+    milestones = project.milestone_set.all()
+    
+    # Add a flag to indicate if the current user is the owner
+    is_owner = (project.user == request.user)
+    
+    return render(request, 'timeline_app/project_detail.html', {
+        'project': project,
+        'milestones': milestones,
+        'is_owner': is_owner  # Pass this to the template
+    })
+
+@login_required
 def milestone_create(request, project_id):
-    project = get_object_or_404(Project, id=project_id, user=request.user)
+    # Allow both owner and collaborators to add milestones
+    project_queryset = Project.objects.filter(id=project_id).filter(
+        models.Q(user=request.user) | models.Q(collaborators=request.user)
+    )
+    
+    project = get_object_or_404(project_queryset)
+    
     if request.method == 'POST':
         form = MilestoneForm(request.POST, project=project)
         if form.is_valid():
             milestone = form.save(commit=False)
             milestone.project = project
             milestone.save()
+            
+            # Notify the project owner if a collaborator added a milestone
+            if project.user != request.user:
+                Notification.objects.create(
+                    user=project.user,
+                    notification_type='milestone_added',
+                    message=f"{request.user.username} added milestone '{milestone.name}' to your project '{project.name}'",
+                    project=project,
+                    milestone=milestone
+                )
+            
             messages.success(request, 'Milestone added successfully!')
             return redirect('timeline_app:project_detail', project_id=project.id)
     else:
         form = MilestoneForm(project=project)
+    
     return render(request, 'timeline_app/milestone_form.html', {
         'form': form,
         'project': project
     })
 
 @login_required
-def project_detail(request, project_id):
-    project = get_object_or_404(Project, id=project_id, user=request.user)
-    milestones = project.milestone_set.all()
-    return render(request, 'timeline_app/project_detail.html', {
-        'project': project,
-        'milestones': milestones
-    })
-
-@login_required
 def project_update(request, project_id):
+    # Only the owner can update the project
     project = get_object_or_404(Project, id=project_id, user=request.user)
+    
     if request.method == 'POST':
         form = ProjectForm(request.POST, instance=project)
         if form.is_valid():
@@ -106,6 +139,7 @@ def project_update(request, project_id):
             return redirect('timeline_app:project_detail', project_id=project.id)
     else:
         form = ProjectForm(instance=project)
+    
     return render(request, 'timeline_app/project_form.html', {
         'form': form,
         'edit_mode': True,
@@ -151,28 +185,24 @@ def share_project(request, project_id):
                     project.collaborators.add(collaborator)
                     messages.success(request, f"Project shared with {collaborator.username} successfully!")
                     
+                    # Create a notification for the collaborator
+                    notification = Notification.objects.create(
+                        user=collaborator,
+                        notification_type='project_shared', 
+                        message=f"{request.user.username} has shared the project '{project.name}' with you",
+                        project=project
+                    )
                     
-                notification = Notification.objects.create(
-                user=collaborator,  # This is the recipient user
-                notification_type='project_shared', 
-                message=f"{request.user.username} has shared the project '{project.name}' with you",
-                project=project)
-
-                print(f"Created notification ID {notification.id} for user {collaborator.username} (ID: {collaborator.id})")
+                    print(f"Created notification ID {notification.id} for user {collaborator.username} (ID: {collaborator.id})")
                     
                     # Send email notification
-                from django.core.mail import send_mail
-                from django.template.loader import render_to_string
-                from django.utils.html import strip_tags
-
-                    # Email subject
-                subject = f"{request.user.username} shared a project with you: {project.name}"
+                    subject = f"{request.user.username} shared a project with you: {project.name}"
 
                     # Get the site's domain
-                site_domain = request.get_host()
+                    site_domain = request.get_host()
                     
                     # Create email context
-                context = {
+                    context = {
                         'username': collaborator.username,
                         'shared_by': request.user.username,
                         'project_name': project.name,
@@ -180,10 +210,11 @@ def share_project(request, project_id):
                     }
 
                     # Render HTML content
-                html_message = render_to_string('timeline_app/email/project_shared.html', context)
-                plain_message = strip_tags(html_message)
-                
-                try:
+                    html_message = render_to_string('timeline_app/email/project_shared.html', context)
+                    plain_message = strip_tags(html_message)
+
+                    # Send email
+                    try:
                         send_mail(
                             subject=subject,
                             message=plain_message,
@@ -193,7 +224,7 @@ def share_project(request, project_id):
                             fail_silently=False
                         )
                         print(f"Email sent to {collaborator.email}")
-                except Exception as e:
+                    except Exception as e:
                         print(f"Error sending email: {e}")
                 
                 return redirect('timeline_app:project_detail', project_id=project.id)
@@ -222,50 +253,26 @@ def remove_collaborator(request, project_id, user_id):
     return redirect('timeline_app:share_project', project_id=project.id)
 
 @login_required
-def send_collaboration_notification(collaborator, project, from_user):
-    
-    Notification.objects.create(
-        user=collaborator,
-        notification_type='project_shared', 
-        message=f"{from_user.username} has shared the project '{project.name}' with you",
-        project=project
+def export_project(request, project_id, format_type):
+    # Allow both owner and collaborators to export projects
+    # Using filter first, then get_object_or_404 on the filtered queryset
+    project_queryset = Project.objects.filter(
+        id=project_id
+    ).filter(
+        models.Q(user=request.user) | models.Q(collaborators=request.user)
     )
-
-def export_project_to_csv(project):
-    import csv
-    from django.http import HttpResponse
     
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="{project.name}.csv"'
+    project = get_object_or_404(project_queryset)
     
-    writer = csv.writer(response)
-    writer.writerow(['Project Name', 'Start Date', 'End Date', 'Description'])
-    writer.writerow([project.name, project.start_date, project.end_date, project.description])
-    
-    writer.writerow([])  # Empty row for separation
-    writer.writerow(['Milestone', 'Due Date', 'Description', 'Status'])
-    
-    for milestone in project.milestone_set.all():
-        writer.writerow([milestone.title, milestone.due_date, milestone.description, milestone.status])
-    
-    return response
-
-def export_project_to_pdf(request, project):
-    from django.http import HttpResponse
-    from django.template.loader import render_to_string
-    from weasyprint import HTML
-    import tempfile
-    
-    html_string = render_to_string('timeline_app/project_pdf_template.html', {
-        'project': project,
-        'milestones': project.milestone_set.all(),
-    })
-    
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{project.name}.pdf"'
-    
-    HTML(string=html_string).write_pdf(response)
-    return response
+    if format_type == 'csv':
+        from .utils import export_project_to_csv
+        return export_project_to_csv(project)
+    elif format_type == 'pdf':
+        from .utils import export_project_to_pdf
+        return export_project_to_pdf(request, project)
+    else:
+        messages.error(request, f"Unknown export format: {format_type}")
+        return redirect('timeline_app:project_detail', project_id=project.id)
 
 @login_required
 def notifications(request):
@@ -279,14 +286,11 @@ def notifications(request):
     for notif in user_notifications:
         print(f"Notification #{notif.id}: {notif.message} - for user {notif.user.username}")
     
-    # Check all notifications in the system
-    all_notifs = Notification.objects.all()
-    print(f"Total notifications in system: {all_notifs.count()}")
-    for notif in all_notifs:
-        print(f"System notification #{notif.id}: {notif.message} - for user {notif.user.username}")
+    unread_count = user_notifications.filter(is_read=False).count()
     
     return render(request, 'timeline_app/notifications.html', {
         'notifications': user_notifications,
+        'unread_count': unread_count
     })
 
 @login_required
@@ -331,26 +335,6 @@ def archived_projects(request):
         'archived_projects': archived_projects
     })
 
-@login_required
-def export_project(request, project_id, format_type):
-    project = get_object_or_404(Project, id=project_id)
-    
-    # Check if user has access to this project
-    if project.user != request.user and request.user not in project.collaborators.all():
-        messages.error(request, "You don't have permission to export this project.")
-        return redirect('timeline_app:dashboard')
-    
-    if format_type == 'csv':
-        # Use the local version defined in this file
-        return export_project_to_csv(project)
-    elif format_type == 'pdf':
-        # Use the local version defined in this file
-        return export_project_to_pdf(request, project)
-    else:
-        messages.error(request, f"Unknown export format: {format_type}")
-        return redirect('timeline_app:project_detail', project_id=project.id)
-
-        
 @login_required
 def analytics(request):
     # Get user's projects (both owned and shared)
