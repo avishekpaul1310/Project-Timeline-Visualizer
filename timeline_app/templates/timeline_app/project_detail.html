@@ -7,11 +7,16 @@
     <div class="col">
         <h1>{{ project.name }}</h1>
     </div>
+    
+    {% if project.user == request.user %}
+    <!-- Only show Add Milestone button to the owner -->
     <div class="col-auto">
         <a href="{% url 'timeline_app:milestone_create' project.id %}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Milestone
         </a>
     </div>
+    {% endif %}
+    
     <div class="btn-group">
         {% if project.user == request.user %}
             <!-- Owner-only actions -->
@@ -30,11 +35,12 @@
                     <i class="fas fa-archive"></i> Archive
                 </a>
             {% endif %}
+            
+            <!-- Only owners can share projects -->
+            <a href="{% url 'timeline_app:share_project' project.id %}" class="btn btn-info">
+                <i class="fas fa-share-alt"></i> Share
+            </a>
         {% endif %}
-        <!-- Available to both owners and collaborators -->
-        <a href="{% url 'timeline_app:share_project' project.id %}" class="btn btn-info">
-            <i class="fas fa-share-alt"></i> Share
-        </a>
     </div>
 </div>
 
@@ -52,7 +58,7 @@
                 <p><strong>Last Updated:</strong> {{ project.updated_at }}</p>
                 {% if project.user != request.user %}
                     <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle"></i> You are viewing this project as a collaborator. Only the project owner can edit or delete it.
+                        <i class="fas fa-info-circle"></i> You are viewing this project as a collaborator. Only the project owner can edit, delete, or add milestones to this project.
                     </div>
                 {% endif %}
             </div>

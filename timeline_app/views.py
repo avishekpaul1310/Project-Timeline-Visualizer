@@ -117,10 +117,10 @@ def milestone_create(request, project_id):
         # Get the project by ID
         project = Project.objects.get(id=project_id)
         
-        # Check if the user has permission to add milestones
-        if project.user != request.user and request.user not in project.collaborators.all():
-            messages.error(request, "You don't have permission to add milestones to this project.")
-            return redirect('timeline_app:dashboard')
+        # Check if the user is the owner
+        if project.user != request.user:
+            messages.error(request, "Only the project owner can add milestones to this project.")
+            return redirect('timeline_app:project_detail', project_id=project.id)
         
         if request.method == 'POST':
             form = MilestoneForm(request.POST, project=project)
@@ -129,12 +129,12 @@ def milestone_create(request, project_id):
                 milestone.project = project
                 milestone.save()
                 
-                # Notify the project owner if a collaborator added a milestone
-                if project.user != request.user:
+                # Notify collaborators about the new milestone
+                for collaborator in project.collaborators.all():
                     Notification.objects.create(
-                        user=project.user,
+                        user=collaborator,
                         notification_type='milestone_added',
-                        message=f"{request.user.username} added milestone '{milestone.name}' to your project '{project.name}'",
+                        message=f"{request.user.username} added milestone '{milestone.name}' to project '{project.name}'",
                         project=project,
                         milestone=milestone
                     )
@@ -383,19 +383,51 @@ def mark_all_read(request):
 
 @login_required
 def archive_project(request, project_id):
-    project = get_object_or_404(Project, id=project_id, user=request.user)
-    project.is_archived = True
-    project.save()
-    messages.success(request, f"Project '{project.name}' has been archived.")
-    return redirect('timeline_app:dashboard')
+    try:
+        # Get the project by ID
+        project = Project.objects.get(id=project_id)
+        
+        # Check if the user is the owner
+        if project.user != request.user:
+            messages.error(request, "Only the project owner can archive this project.")
+            return redirect('timeline_app:project_detail', project_id=project.id)
+        
+        project.is_archived = True
+        project.save()
+        messages.success(request, f"Project '{project.name}' has been archived.")
+        return redirect('timeline_app:dashboard')
+    
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
+        return redirect('timeline_app:dashboard')
+    except Exception as e:
+        print(f"Error in archive_project: {e}")
+        messages.error(request, "An error occurred while archiving the project.")
+        return redirect('timeline_app:dashboard')
 
 @login_required
 def unarchive_project(request, project_id):
-    project = get_object_or_404(Project, id=project_id, user=request.user)
-    project.is_archived = False
-    project.save()
-    messages.success(request, f"Project '{project.name}' has been unarchived.")
-    return redirect('timeline_app:archived_projects')
+    try:
+        # Get the project by ID
+        project = Project.objects.get(id=project_id)
+        
+        # Check if the user is the owner
+        if project.user != request.user:
+            messages.error(request, "Only the project owner can unarchive this project.")
+            return redirect('timeline_app:project_detail', project_id=project.id)
+        
+        project.is_archived = False
+        project.save()
+        messages.success(request, f"Project '{project.name}' has been unarchived.")
+        return redirect('timeline_app:archived_projects')
+    
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
+        return redirect('timeline_app:dashboard')
+    except Exception as e:
+        print(f"Error in unarchive_project: {e}")
+        messages.error(request, "An error occurred while unarchiving the project.")
+        return redirect('timeline_app:dashboard')
 
 @login_required
 def archived_projects(request):
