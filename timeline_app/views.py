@@ -136,22 +136,33 @@ def share_project(request, project_id):
         form = ProjectShareForm(request.POST)
         if form.is_valid():
             collaborator_email = form.cleaned_data['email']
-            from django.contrib.auth.models import User
-            collaborator = User.objects.get(email=collaborator_email)
             
-            # Check if user is already a collaborator
-            if collaborator == request.user:
-                messages.warning(request, "You can't add yourself as a collaborator.")
-            elif collaborator in project.collaborators.all():
-                messages.info(request, f"{collaborator.username} is already a collaborator.")
-            else:
-                project.collaborators.add(collaborator)
-                messages.success(request, f"Project shared with {collaborator.username} successfully!")
+            try:
+                # Get the user with this email
+                collaborator = User.objects.get(email=collaborator_email)
                 
-                # Send notification email to the collaborator
-                send_collaboration_notification(collaborator, project, request.user)
+                # Check if user is already a collaborator
+                if collaborator == request.user:
+                    messages.warning(request, "You can't add yourself as a collaborator.")
+                elif collaborator in project.collaborators.all():
+                    messages.info(request, f"{collaborator.username} is already a collaborator.")
+                else:
+                    # Add the collaborator to the project
+                    project.collaborators.add(collaborator)
+                    messages.success(request, f"Project shared with {collaborator.username} successfully!")
+                    
+                    # Create a notification for the collaborator
+                    Notification.objects.create(
+                        user=collaborator,
+                        notification_type='project_shared', 
+                        message=f"{request.user.username} has shared the project '{project.name}' with you",
+                        project=project
+                    )
                 
-            return redirect('timeline_app:project_detail', project_id=project.id)
+                return redirect('timeline_app:project_detail', project_id=project.id)
+                
+            except User.DoesNotExist:
+                messages.error(request, "No user with this email address was found.")
     else:
         form = ProjectShareForm()
     
