@@ -17,35 +17,49 @@ from django.utils.html import strip_tags
 
 @login_required
 def dashboard(request):
-    from django.db.models import Q
-    
-    print(f"Fetching projects for user: {request.user.username} (ID: {request.user.id})")
-    
-    # Get all projects (both owned and shared) in a single query with distinct
-    all_projects = Project.objects.filter(
-        Q(user=request.user) | Q(collaborators=request.user),
-        is_archived=False
-    ).distinct()
-    
-    print(f"All projects count: {all_projects.count()}")
-    for p in all_projects:
-        print(f"Project: {p.id} - {p.name} - Owner: {p.user.username}")
-    
-    # Create a list of project data for the timeline
-    projects_list = []
-    for p in all_projects:
-        projects_list.append({
-            'name': p.name,
-            'start_date': p.start_date.strftime('%Y-%m-%d'),
-            'end_date': p.end_date.strftime('%Y-%m-%d'),
-            'id': p.id
-        })
-    
-    # Sort projects by start date for better display
-    projects_list.sort(key=lambda x: x['start_date'])
-    
-    # Convert to JSON
-    json_data = json.dumps(projects_list)
+    try:
+        # Get projects owned by the user
+        owned_projects = Project.objects.filter(
+            user=request.user, 
+            is_archived=False
+        )
+        print(f"User {request.user.username} has {owned_projects.count()} owned projects")
+        
+        # Get projects shared with the user (where user is a collaborator)
+        shared_projects = Project.objects.filter(
+            collaborators=request.user,
+            is_archived=False
+        ).exclude(
+            user=request.user  # Exclude projects where user is also the owner
+        )
+        print(f"User {request.user.username} has {shared_projects.count()} shared projects")
+        
+        # Combine the querysets
+        all_projects = list(owned_projects) + list(shared_projects)
+        print(f"Total projects for user {request.user.username}: {len(all_projects)}")
+        
+        # Create data for timeline
+        projects_list = []
+        for p in all_projects:
+            print(f"Adding project to list: {p.id} - {p.name} - Owner: {p.user.username}")
+            projects_list.append({
+                'name': p.name,
+                'start_date': p.start_date.strftime('%Y-%m-%d'),
+                'end_date': p.end_date.strftime('%Y-%m-%d'),
+                'id': p.id
+            })
+        
+        # Sort by start date
+        projects_list.sort(key=lambda x: x['start_date'])
+        
+        # Convert to JSON
+        json_data = json.dumps(projects_list)
+        
+    except Exception as e:
+        print(f"Error in dashboard: {e}")
+        messages.error(request, "An error occurred while loading your projects.")
+        all_projects = []
+        json_data = "[]"
     
     return render(request, 'timeline_app/dashboard.html', {
         'projects': all_projects,
@@ -68,62 +82,75 @@ def project_create(request):
 
 @login_required
 def project_detail(request, project_id):
-    # Get the project if the user is either the owner or a collaborator
-    # Use distinct() to avoid duplicate results
-    project_queryset = Project.objects.filter(
-        models.Q(id=project_id),
-        models.Q(user=request.user) | models.Q(collaborators=request.user)
-    ).distinct()
-    
-    project = get_object_or_404(Project, id=project_id)
-    
-    # Check if the user has permission to view this project
-    if project.user != request.user and request.user not in project.collaborators.all():
-        messages.error(request, "You don't have permission to view this project.")
+    try:
+        # First try to get the project by ID
+        project = Project.objects.get(id=project_id)
+        
+        # Check if the user has permission (is owner or collaborator)
+        if project.user != request.user and request.user not in project.collaborators.all():
+            messages.error(request, "You don't have permission to view this project.")
+            return redirect('timeline_app:dashboard')
+        
+        # Fetch milestones
+        milestones = Milestone.objects.filter(project=project)
+        
+        # Add a flag to indicate if the current user is the owner
+        is_owner = (project.user == request.user)
+        
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
         return redirect('timeline_app:dashboard')
-    
-    milestones = project.milestone_set.all()
-    
-    # Add a flag to indicate if the current user is the owner
-    is_owner = (project.user == request.user)
+    except Exception as e:
+        print(f"Error in project_detail: {e}")
+        messages.error(request, "An error occurred while loading the project.")
+        return redirect('timeline_app:dashboard')
     
     return render(request, 'timeline_app/project_detail.html', {
         'project': project,
         'milestones': milestones,
-        'is_owner': is_owner  # Pass this to the template
+        'is_owner': is_owner
     })
 
 @login_required
 def milestone_create(request, project_id):
-    # Get the base project by ID
-    project = get_object_or_404(Project, id=project_id)
+    try:
+        # Get the project by ID
+        project = Project.objects.get(id=project_id)
+        
+        # Check if the user has permission to add milestones
+        if project.user != request.user and request.user not in project.collaborators.all():
+            messages.error(request, "You don't have permission to add milestones to this project.")
+            return redirect('timeline_app:dashboard')
+        
+        if request.method == 'POST':
+            form = MilestoneForm(request.POST, project=project)
+            if form.is_valid():
+                milestone = form.save(commit=False)
+                milestone.project = project
+                milestone.save()
+                
+                # Notify the project owner if a collaborator added a milestone
+                if project.user != request.user:
+                    Notification.objects.create(
+                        user=project.user,
+                        notification_type='milestone_added',
+                        message=f"{request.user.username} added milestone '{milestone.name}' to your project '{project.name}'",
+                        project=project,
+                        milestone=milestone
+                    )
+                
+                messages.success(request, 'Milestone added successfully!')
+                return redirect('timeline_app:project_detail', project_id=project.id)
+        else:
+            form = MilestoneForm(project=project)
     
-    # Check if the user has permission to add milestones
-    if project.user != request.user and request.user not in project.collaborators.all():
-        messages.error(request, "You don't have permission to add milestones to this project.")
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
         return redirect('timeline_app:dashboard')
-    
-    if request.method == 'POST':
-        form = MilestoneForm(request.POST, project=project)
-        if form.is_valid():
-            milestone = form.save(commit=False)
-            milestone.project = project
-            milestone.save()
-            
-            # Notify the project owner if a collaborator added a milestone
-            if project.user != request.user:
-                Notification.objects.create(
-                    user=project.user,
-                    notification_type='milestone_added',
-                    message=f"{request.user.username} added milestone '{milestone.name}' to your project '{project.name}'",
-                    project=project,
-                    milestone=milestone
-                )
-            
-            messages.success(request, 'Milestone added successfully!')
-            return redirect('timeline_app:project_detail', project_id=project.id)
-    else:
-        form = MilestoneForm(project=project)
+    except Exception as e:
+        print(f"Error in milestone_create: {e}")
+        messages.error(request, "An error occurred while adding the milestone.")
+        return redirect('timeline_app:dashboard')
     
     return render(request, 'timeline_app/milestone_form.html', {
         'form': form,
@@ -404,3 +431,177 @@ def analytics(request):
         'month_labels': json.dumps(month_labels),
         'month_counts': json.dumps(month_counts),
     })
+
+# Add this to your views.py file
+@login_required
+def project_diagnostic(request):
+    """A diagnostic view to help troubleshoot project visibility issues"""
+    user = request.user
+    
+    # Get all projects in the database
+    all_projects_in_db = Project.objects.all()
+    
+    # Get projects where the user is the owner
+    owned_projects = Project.objects.filter(user=user)
+    
+    # Get projects where the user is a collaborator
+    shared_projects = Project.objects.filter(collaborators=user)
+    
+    # Get the combined projects as we're doing in the dashboard view
+    from django.db.models import Q
+    combined_projects = Project.objects.filter(
+        Q(user=user) | Q(collaborators=user)
+    ).distinct()
+    
+    # Create context
+    context = {
+        'username': user.username,
+        'user_id': user.id,
+        'all_projects_count': all_projects_in_db.count(),
+        'all_projects': [
+            {
+                'id': p.id, 
+                'name': p.name, 
+                'owner': p.user.username,
+                'owner_id': p.user.id,
+                'collaborators': [c.username for c in p.collaborators.all()]
+            } for p in all_projects_in_db
+        ],
+        'owned_projects_count': owned_projects.count(),
+        'owned_projects': [
+            {
+                'id': p.id, 
+                'name': p.name
+            } for p in owned_projects
+        ],
+        'shared_projects_count': shared_projects.count(),
+        'shared_projects': [
+            {
+                'id': p.id, 
+                'name': p.name,
+                'owner': p.user.username
+            } for p in shared_projects
+        ],
+        'combined_projects_count': combined_projects.count(),
+        'combined_projects': [
+            {
+                'id': p.id, 
+                'name': p.name, 
+                'owner': p.user.username
+            } for p in combined_projects
+        ]
+    }
+    
+    return render(request, 'timeline_app/diagnostic.html', context)
+
+# Then add a URL pattern in urls.py
+# path('diagnostic/', views.project_diagnostic, name='project_diagnostic'),
+
+# Create the diagnostic.html template in your templates folder
+"""
+{% extends 'timeline_app/base.html' %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h2>Project Visibility Diagnostic</h2>
+        <p>User: {{ username }} (ID: {{ user_id }})</p>
+    </div>
+    <div class="card-body">
+        <h3>All Projects in Database ({{ all_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Owner</th>
+                    <th>Owner ID</th>
+                    <th>Collaborators</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in all_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.owner }}</td>
+                    <td>{{ project.owner_id }}</td>
+                    <td>{{ project.collaborators|join:", " }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Owned Projects ({{ owned_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in owned_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2">No owned projects</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Shared Projects ({{ shared_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Owner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in shared_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.owner }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3">No shared projects</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Combined Projects ({{ combined_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Owner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in combined_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.owner }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3">No combined projects</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+"""

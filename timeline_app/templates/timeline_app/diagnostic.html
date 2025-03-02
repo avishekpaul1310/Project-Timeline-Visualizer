@@ -1,0 +1,107 @@
+{% extends 'timeline_app/base.html' %}
+
+{% block title %}Project Diagnostic{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h2>Project Visibility Diagnostic</h2>
+        <p>User: {{ username }} (ID: {{ user_id }})</p>
+    </div>
+    <div class="card-body">
+        <h3>All Projects in Database ({{ all_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Owner</th>
+                    <th>Owner ID</th>
+                    <th>Collaborators</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in all_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.owner }}</td>
+                    <td>{{ project.owner_id }}</td>
+                    <td>{{ project.collaborators|join:", " }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Owned Projects ({{ owned_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in owned_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2">No owned projects</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Shared Projects ({{ shared_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Owner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in shared_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.owner }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3">No shared projects</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <h3>Combined Projects ({{ combined_projects_count }})</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Owner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in combined_projects %}
+                <tr>
+                    <td>{{ project.id }}</td>
+                    <td>{{ project.name }}</td>
+                    <td>{{ project.owner }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3">No combined projects</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
