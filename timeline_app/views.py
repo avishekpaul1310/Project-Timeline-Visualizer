@@ -159,34 +159,65 @@ def milestone_create(request, project_id):
 
 @login_required
 def project_update(request, project_id):
-    # Only the owner can update the project
-    project = get_object_or_404(Project, id=project_id, user=request.user)
-    
-    if request.method == 'POST':
-        form = ProjectForm(request.POST, instance=project)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Project updated successfully!')
+    try:
+        # First try to get the project by ID
+        project = Project.objects.get(id=project_id)
+        
+        # Check if the user is the owner
+        if project.user != request.user:
+            messages.error(request, "You don't have permission to edit this project. Only the project owner can make changes.")
             return redirect('timeline_app:project_detail', project_id=project.id)
-    else:
-        form = ProjectForm(instance=project)
-    
-    return render(request, 'timeline_app/project_form.html', {
-        'form': form,
-        'edit_mode': True,
-        'project': project
-    })
+            
+        if request.method == 'POST':
+            form = ProjectForm(request.POST, instance=project)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Project updated successfully!')
+                return redirect('timeline_app:project_detail', project_id=project.id)
+        else:
+            form = ProjectForm(instance=project)
+        
+        return render(request, 'timeline_app/project_form.html', {
+            'form': form,
+            'edit_mode': True,
+            'project': project
+        })
+        
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
+        return redirect('timeline_app:dashboard')
+    except Exception as e:
+        print(f"Error in project_update view: {e}")
+        messages.error(request, "An error occurred while trying to update the project.")
+        return redirect('timeline_app:dashboard')
 
 @login_required
 def project_delete(request, project_id):
-    project = get_object_or_404(Project, id=project_id, user=request.user)
-    if request.method == 'POST':
-        project.delete()
-        messages.success(request, 'Project deleted successfully!')
+    try:
+        # First try to get the project by ID
+        project = Project.objects.get(id=project_id)
+        
+        # Check if the user is the owner
+        if project.user != request.user:
+            messages.error(request, "You don't have permission to delete this project. Only the project owner can delete it.")
+            return redirect('timeline_app:project_detail', project_id=project.id)
+            
+        if request.method == 'POST':
+            project.delete()
+            messages.success(request, 'Project deleted successfully!')
+            return redirect('timeline_app:dashboard')
+            
+        return render(request, 'timeline_app/project_confirm_delete.html', {
+            'project': project
+        })
+        
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
         return redirect('timeline_app:dashboard')
-    return render(request, 'timeline_app/project_confirm_delete.html', {
-        'project': project
-    })
+    except Exception as e:
+        print(f"Error in project_delete view: {e}")
+        messages.error(request, "An error occurred while trying to delete the project.")
+        return redirect('timeline_app:dashboard')
 
 def logout_view(request):
     logout(request)
@@ -195,82 +226,94 @@ def logout_view(request):
 
 @login_required
 def share_project(request, project_id):
-    project = get_object_or_404(Project, id=project_id, user=request.user)
-    
-    if request.method == 'POST':
-        form = ProjectShareForm(request.POST)
-        if form.is_valid():
-            collaborator_email = form.cleaned_data['email']
-            
-            try:
-                # Get the user with this email
-                collaborator = User.objects.get(email=collaborator_email)
+    try:
+        # Get the project by ID
+        project = Project.objects.get(id=project_id)
+        
+        # Check if the user is the owner
+        if project.user != request.user:
+            messages.error(request, "Only the project owner can share this project with others.")
+            return redirect('timeline_app:project_detail', project_id=project.id)
+        
+        if request.method == 'POST':
+            form = ProjectShareForm(request.POST)
+            if form.is_valid():
+                collaborator_email = form.cleaned_data['email']
                 
-                # Check if user is already a collaborator
-                if collaborator == request.user:
-                    messages.warning(request, "You can't add yourself as a collaborator.")
-                elif collaborator in project.collaborators.all():
-                    messages.info(request, f"{collaborator.username} is already a collaborator.")
-                else:
-                    # Add the collaborator to the project
-                    project.collaborators.add(collaborator)
-                    messages.success(request, f"Project shared with {collaborator.username} successfully!")
+                try:
+                    # Get the user with this email
+                    collaborator = User.objects.get(email=collaborator_email)
                     
-                    # Create a notification for the collaborator
-                    notification = Notification.objects.create(
-                        user=collaborator,
-                        notification_type='project_shared', 
-                        message=f"{request.user.username} has shared the project '{project.name}' with you",
-                        project=project
-                    )
-                    
-                    print(f"Created notification ID {notification.id} for user {collaborator.username} (ID: {collaborator.id})")
-                    
-                    # Send email notification
-                    subject = f"{request.user.username} shared a project with you: {project.name}"
-
-                    # Get the site's domain
-                    site_domain = request.get_host()
-                    
-                    # Create email context
-                    context = {
-                        'username': collaborator.username,
-                        'shared_by': request.user.username,
-                        'project_name': project.name,
-                        'login_url': f"http://{site_domain}/accounts/login/"
-                    }
-
-                    # Render HTML content
-                    html_message = render_to_string('timeline_app/email/project_shared.html', context)
-                    plain_message = strip_tags(html_message)
-
-                    # Send email
-                    try:
-                        send_mail(
-                            subject=subject,
-                            message=plain_message,
-                            from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings
-                            recipient_list=[collaborator.email],
-                            html_message=html_message,
-                            fail_silently=False
+                    # Check if user is already a collaborator
+                    if collaborator == request.user:
+                        messages.warning(request, "You can't add yourself as a collaborator.")
+                    elif collaborator in project.collaborators.all():
+                        messages.info(request, f"{collaborator.username} is already a collaborator.")
+                    else:
+                        # Add the collaborator to the project
+                        project.collaborators.add(collaborator)
+                        messages.success(request, f"Project shared with {collaborator.username} successfully!")
+                        
+                        # Create a notification for the collaborator
+                        notification = Notification.objects.create(
+                            user=collaborator,
+                            notification_type='project_shared', 
+                            message=f"{request.user.username} has shared the project '{project.name}' with you",
+                            project=project
                         )
-                        print(f"Email sent to {collaborator.email}")
-                    except Exception as e:
-                        print(f"Error sending email: {e}")
-                
-                return redirect('timeline_app:project_detail', project_id=project.id)
-                
-            except User.DoesNotExist:
-                messages.error(request, "No user with this email address was found.")
-    else:
-        form = ProjectShareForm()
+                        
+                        # Send email notification
+                        subject = f"{request.user.username} shared a project with you: {project.name}"
+
+                        # Get the site's domain
+                        site_domain = request.get_host()
+                        
+                        # Create email context
+                        context = {
+                            'username': collaborator.username,
+                            'shared_by': request.user.username,
+                            'project_name': project.name,
+                            'login_url': f"http://{site_domain}/accounts/login/"
+                        }
+
+                        # Render HTML content
+                        html_message = render_to_string('timeline_app/email/project_shared.html', context)
+                        plain_message = strip_tags(html_message)
+
+                        # Send email
+                        try:
+                            send_mail(
+                                subject=subject,
+                                message=plain_message,
+                                from_email=None,  # Uses DEFAULT_FROM_EMAIL from settings
+                                recipient_list=[collaborator.email],
+                                html_message=html_message,
+                                fail_silently=False
+                            )
+                        except Exception as e:
+                            print(f"Error sending email: {e}")
+                    
+                    return redirect('timeline_app:project_detail', project_id=project.id)
+                    
+                except User.DoesNotExist:
+                    messages.error(request, "No user with this email address was found.")
+        else:
+            form = ProjectShareForm()
+        
+        current_collaborators = project.collaborators.all()
+        return render(request, 'timeline_app/share_project.html', {
+            'form': form,
+            'project': project,
+            'current_collaborators': current_collaborators
+        })
     
-    current_collaborators = project.collaborators.all()
-    return render(request, 'timeline_app/share_project.html', {
-        'form': form,
-        'project': project,
-        'current_collaborators': current_collaborators
-    })
+    except Project.DoesNotExist:
+        messages.error(request, "Project not found.")
+        return redirect('timeline_app:dashboard')
+    except Exception as e:
+        print(f"Error in share_project view: {e}")
+        messages.error(request, "An error occurred while trying to share the project.")
+        return redirect('timeline_app:dashboard')
 
 @login_required
 def remove_collaborator(request, project_id, user_id):

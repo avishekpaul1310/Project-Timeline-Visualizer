@@ -12,28 +12,30 @@
             <i class="fas fa-plus"></i> Add Milestone
         </a>
     </div>
-    <!-- In templates/timeline_app/project_detail.html -->
-<!-- In templates/timeline_app/project_detail.html -->
-<div class="btn-group">
-    <a href="{% url 'timeline_app:project_update' project.id %}" class="btn btn-primary">
-        <i class="fas fa-edit"></i> Edit
-    </a>
-    <a href="{% url 'timeline_app:share_project' project.id %}" class="btn btn-info">
-        <i class="fas fa-share-alt"></i> Share
-    </a>
-    {% if project.is_archived %}
-        <a href="{% url 'timeline_app:unarchive_project' project.id %}" class="btn btn-success">
-            <i class="fas fa-box-open"></i> Unarchive
+    <div class="btn-group">
+        {% if project.user == request.user %}
+            <!-- Owner-only actions -->
+            <a href="{% url 'timeline_app:project_update' project.id %}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <a href="{% url 'timeline_app:project_delete' project.id %}" class="btn btn-danger">
+                <i class="fas fa-trash-alt"></i> Delete
+            </a>
+            {% if project.is_archived %}
+                <a href="{% url 'timeline_app:unarchive_project' project.id %}" class="btn btn-success">
+                    <i class="fas fa-box-open"></i> Unarchive
+                </a>
+            {% else %}
+                <a href="{% url 'timeline_app:archive_project' project.id %}" class="btn btn-secondary">
+                    <i class="fas fa-archive"></i> Archive
+                </a>
+            {% endif %}
+        {% endif %}
+        <!-- Available to both owners and collaborators -->
+        <a href="{% url 'timeline_app:share_project' project.id %}" class="btn btn-info">
+            <i class="fas fa-share-alt"></i> Share
         </a>
-    {% else %}
-        <a href="{% url 'timeline_app:archive_project' project.id %}" class="btn btn-secondary">
-            <i class="fas fa-archive"></i> Archive
-        </a>
-    {% endif %}
-    <a href="{% url 'timeline_app:project_delete' project.id %}" class="btn btn-danger">
-        <i class="fas fa-trash-alt"></i> Delete
-    </a>
-</div>
+    </div>
 </div>
 
 <div class="row mb-4">
@@ -43,10 +45,16 @@
                 <h3>Project Details</h3>
             </div>
             <div class="card-body">
+                <p><strong>Owner:</strong> {{ project.user.username }}</p>
                 <p><strong>Start Date:</strong> {{ project.start_date }}</p>
                 <p><strong>End Date:</strong> {{ project.end_date }}</p>
                 <p><strong>Created:</strong> {{ project.created_at }}</p>
                 <p><strong>Last Updated:</strong> {{ project.updated_at }}</p>
+                {% if project.user != request.user %}
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i> You are viewing this project as a collaborator. Only the project owner can edit or delete it.
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
