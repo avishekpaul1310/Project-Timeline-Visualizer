@@ -17,32 +17,21 @@ from django.utils.html import strip_tags
 
 @login_required
 def dashboard(request):
-    # Get active projects (not archived)
-    owned_projects = Project.objects.filter(user=request.user, is_archived=False)
-    shared_projects = Project.objects.filter(collaborators=request.user, is_archived=False)
+    from django.db.models import Q
     
-    # Combine owned and shared projects without duplicates
-    project_ids = set()
-    all_projects = []
-    
-    for p in owned_projects:
-        if p.id not in project_ids:
-            all_projects.append(p)
-            project_ids.add(p.id)
-    
-    for p in shared_projects:
-        if p.id not in project_ids:
-            all_projects.append(p)
-            project_ids.add(p.id)
+    # Get all projects (both owned and shared) in a single query
+    all_projects = Project.objects.filter(
+        Q(user=request.user) | Q(collaborators=request.user),
+        is_archived=False
+    ).distinct()
     
     # Create a list of project data for the timeline
     projects_list = []
     for p in all_projects:
-        # Ensure dates are properly formatted for JavaScript
         projects_list.append({
             'name': p.name,
-            'start_date': p.start_date.strftime('%Y-%m-%d'),  # Use consistent format
-            'end_date': p.end_date.strftime('%Y-%m-%d'),      # Use consistent format
+            'start_date': p.start_date.strftime('%Y-%m-%d'),
+            'end_date': p.end_date.strftime('%Y-%m-%d'),
             'id': p.id
         })
     
