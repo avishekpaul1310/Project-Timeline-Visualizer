@@ -17,17 +17,42 @@ from django.utils.html import strip_tags
 
 @login_required
 def dashboard(request):
-    from django.db.models import Q
+    print(f"Fetching projects for user: {request.user.username} (ID: {request.user.id})")
     
-    # Get all projects (both owned and shared) in a single query
-    all_projects = Project.objects.filter(
-        Q(user=request.user) | Q(collaborators=request.user),
-        is_archived=False
-    ).distinct()
+    # Get active projects (not archived)
+    owned_projects = Project.objects.filter(user=request.user, is_archived=False)
+    print(f"Owned projects count: {owned_projects.count()}")
+    for p in owned_projects:
+        print(f"Owned project: {p.id} - {p.name}")
+    
+    shared_projects = Project.objects.filter(collaborators=request.user, is_archived=False)
+    print(f"Shared projects count: {shared_projects.count()}")
+    for p in shared_projects:
+        print(f"Shared project: {p.id} - {p.name}")
+    
+    # Combine owned and shared projects without duplicates
+    project_ids = set()
+    all_projects = []
+    
+    # First add owned projects
+    for p in owned_projects:
+        all_projects.append(p)
+        project_ids.add(p.id)
+    
+    # Then add shared projects if not already added
+    for p in shared_projects:
+        if p.id not in project_ids:
+            all_projects.append(p)
+            project_ids.add(p.id)
+    
+    print(f"Combined projects count: {len(all_projects)}")
+    for p in all_projects:
+        print(f"Combined project: {p.id} - {p.name} - Owner: {p.user.username}")
     
     # Create a list of project data for the timeline
     projects_list = []
     for p in all_projects:
+        # Ensure dates are properly formatted for JavaScript
         projects_list.append({
             'name': p.name,
             'start_date': p.start_date.strftime('%Y-%m-%d'),
