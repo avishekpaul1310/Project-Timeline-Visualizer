@@ -18,13 +18,20 @@ class Project(models.Model):
         return self.name
 
 class Milestone(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('delayed', 'Delayed'),
+    )
+
     name = models.CharField(max_length=200)
     due_date = models.DateField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     description = models.TextField(blank=True, null=True)
-    status = models.CharField(max_length=100, blank=True, null=True)
+    status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='pending')
 
     def __str__(self):
         return self.name

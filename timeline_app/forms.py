@@ -25,9 +25,10 @@ class ProjectForm(forms.ModelForm):
 class MilestoneForm(forms.ModelForm):
     class Meta:
         model = Milestone
-        fields = ['name', 'due_date']
+        fields = ['name', 'due_date', 'status', 'description']
         widgets = {
             'due_date': forms.DateInput(attrs={'type': 'date'}),
+            'description': forms.Textarea(attrs={'rows': 3}),
         }
 
     def __init__(self, *args, **kwargs):

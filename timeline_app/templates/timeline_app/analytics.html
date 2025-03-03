@@ -2,14 +2,27 @@
 {% block title %}Analytics - Timeline Visualizer{% endblock %}
 
 {% block content %}
+<!-- Invisible data elements to transfer Django data to JavaScript -->
+<div id="django-data" style="display: none;"
+    data-completion-percentage="{{ milestone_stats.completion_percentage|default:0 }}"
+    data-completed-count="{{ milestone_stats.completed|default:0 }}"
+    data-total-count="{{ milestone_stats.total|default:0 }}"
+    data-in-progress-count="{{ milestone_stats.in_progress|default:0 }}"
+    data-pending-count="{{ milestone_stats.pending|default:0 }}"
+    data-delayed-count="{{ milestone_stats.delayed|default:0 }}"
+    data-overdue-count="{{ milestone_stats.overdue|default:0 }}"
+    data-month-labels="{{ month_labels|safe }}"
+    data-month-counts="{{ month_counts|safe }}">
+</div>
+
 <div class="row mb-4">
     <div class="col">
         <h1>Project Analytics</h1>
     </div>
 </div>
 
+<!-- Project Stats Cards Row -->
 <div class="row mb-4">
-    <!-- Project Stats Cards -->
     <div class="col-md-4 mb-3">
         <div class="card bg-primary text-white h-100">
             <div class="card-body text-center">
@@ -36,6 +49,100 @@
     </div>
 </div>
 
+<!-- Milestone Completion Stats Row -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Milestone Completion Rate</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <h2 id="completion-percentage" class="display-4">0%</h2>
+                    <p id="completion-count" class="text-muted">Milestones Completed: 0 out of 0</p>
+                </div>
+                
+                <!-- Progress bar with ID for JavaScript targeting -->
+                <div class="progress mb-3" style="height: 25px;">
+                    <div id="completion-progress" 
+                         class="progress-bar bg-success" 
+                         role="progressbar"
+                         style="width: 0%;"
+                         aria-valuenow="0" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        0%
+                    </div>
+                </div>
+                
+                <div class="row text-center">
+                    <div class="col">
+                        <div class="p-2 bg-light rounded">
+                            <h5 id="completed-count">0</h5>
+                            <small class="text-muted">Completed</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-2 bg-light rounded">
+                            <h5 id="in-progress-count">0</h5>
+                            <small class="text-muted">In Progress</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-2 bg-light rounded">
+                            <h5 id="pending-count">0</h5>
+                            <small class="text-muted">Pending</small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div id="overdue-container" class="p-2 bg-light rounded">
+                            <h5 id="overdue-count">0</h5>
+                            <small id="overdue-label" class="text-muted">Overdue</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-3">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Top Projects by Milestones</h5>
+            </div>
+            <div class="card-body">
+                {% if top_projects %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Milestones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in top_projects %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'timeline_app:project_detail' project.id %}">
+                                    {{ project.name }}
+                                </a>
+                            </td>
+                            <td>{{ project.milestone_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="alert alert-info">
+                    No projects with milestones found.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Original Charts Row -->
 <div class="row mb-4">
     <!-- Project Creation Over Time Chart -->
     <div class="col-md-8 mb-3">
@@ -47,11 +154,9 @@
                 <div style="height: 300px;">
                     <canvas id="projectsChart"></canvas>
                 </div>
-                {% if not month_labels or month_labels == '[]' %}
-                <div class="alert alert-info text-center mt-3">
+                <div id="projects-chart-empty" class="alert alert-info text-center mt-3 d-none">
                     <p>No project creation data available yet.</p>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -66,107 +171,144 @@
                 <div style="height: 260px;">
                     <canvas id="milestoneChart"></canvas>
                 </div>
-                {% if milestone_stats.total == 0 %}
-                <div class="alert alert-info text-center mt-3">
+                <div id="milestone-chart-empty" class="alert alert-info text-center mt-3 d-none">
                     <p>No milestone data available yet.</p>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- Script for charts -->
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Create Projects Chart
-    var createProjectsChart = function() {
-        var monthLabelsRaw = '{{ month_labels|safe }}';
-        var monthCountsRaw = '{{ month_counts|safe }}';
+    // Get data from Django template
+    const djangoData = document.getElementById('django-data');
+    
+    // Milestone stats
+    const completionPercentage = parseInt(djangoData.dataset.completionPercentage || 0);
+    const completedCount = parseInt(djangoData.dataset.completedCount || 0);
+    const totalCount = parseInt(djangoData.dataset.totalCount || 0);
+    const inProgressCount = parseInt(djangoData.dataset.inProgressCount || 0);
+    const pendingCount = parseInt(djangoData.dataset.pendingCount || 0);
+    const delayedCount = parseInt(djangoData.dataset.delayedCount || 0);
+    const overdueCount = parseInt(djangoData.dataset.overdueCount || 0);
+    
+    // Chart data
+    let monthLabels = [];
+    let monthCounts = [];
+    
+    try {
+        const monthLabelsData = djangoData.dataset.monthLabels;
+        const monthCountsData = djangoData.dataset.monthCounts;
         
-        if (monthLabelsRaw && monthLabelsRaw !== '[]') {
-            try {
-                var monthLabels = JSON.parse(monthLabelsRaw);
-                var monthCounts = JSON.parse(monthCountsRaw);
-                
-                var projectCtx = document.getElementById('projectsChart').getContext('2d');
-                var projectsChart = new Chart(projectCtx, {
-                    type: 'line',
-                    data: {
-                        labels: monthLabels,
-                        datasets: [{
-                            label: 'Projects Created',
-                            data: monthCounts,
-                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 2,
-                            tension: 0.1,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    precision: 0
-                                }
-                            }
+        if (monthLabelsData && monthLabelsData !== '[]') {
+            monthLabels = JSON.parse(monthLabelsData);
+            monthCounts = JSON.parse(monthCountsData);
+        }
+    } catch (error) {
+        console.error('Error parsing chart data:', error);
+    }
+    
+    // Update milestone statistics
+    document.getElementById('completion-percentage').textContent = completionPercentage + '%';
+    document.getElementById('completion-count').textContent = 
+        `Milestones Completed: ${completedCount} out of ${totalCount}`;
+    
+    // Update progress bar
+    const progressBar = document.getElementById('completion-progress');
+    progressBar.style.width = completionPercentage + '%';
+    progressBar.setAttribute('aria-valuenow', completionPercentage);
+    progressBar.textContent = completionPercentage + '%';
+    
+    // Update count displays
+    document.getElementById('completed-count').textContent = completedCount;
+    document.getElementById('in-progress-count').textContent = inProgressCount;
+    document.getElementById('pending-count').textContent = pendingCount;
+    document.getElementById('overdue-count').textContent = overdueCount;
+    
+    // Update overdue styling if needed
+    if (overdueCount > 0) {
+        const overdueContainer = document.getElementById('overdue-container');
+        overdueContainer.classList.remove('bg-light');
+        overdueContainer.classList.add('bg-danger', 'text-white');
+        
+        const overdueLabel = document.getElementById('overdue-label');
+        overdueLabel.classList.remove('text-muted');
+        overdueLabel.classList.add('text-white');
+    }
+    
+    // Create Projects Chart
+    const projectsChartEmpty = document.getElementById('projects-chart-empty');
+    
+    if (monthLabels.length > 0) {
+        const projectCtx = document.getElementById('projectsChart').getContext('2d');
+        new Chart(projectCtx, {
+            type: 'line',
+            data: {
+                labels: monthLabels,
+                datasets: [{
+                    label: 'Projects Created',
+                    data: monthCounts,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
                         }
                     }
-                });
-            } catch (error) {
-                console.error('Error creating projects chart:', error);
+                }
             }
-        }
-    };
+        });
+    } else {
+        projectsChartEmpty.classList.remove('d-none');
+    }
     
-    // Create Milestone Chart 
-    var createMilestoneChart = function() {
-        var milestoneTotal = parseInt('{{ milestone_stats.total|default:0 }}');
-        
-        if (milestoneTotal > 0) {
-            try {
-                var milestoneCtx = document.getElementById('milestoneChart').getContext('2d');
-                var milestoneChart = new Chart(milestoneCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Upcoming', 'Past', 'Due Today'],
-                        datasets: [{
-                            data: [
-                                parseInt('{{ milestone_stats.upcoming|default:0 }}'), 
-                                parseInt('{{ milestone_stats.past|default:0 }}'), 
-                                parseInt('{{ milestone_stats.today|default:0 }}')
-                            ],
-                            backgroundColor: [
-                                'rgba(75, 192, 192, 0.7)',  // Teal - Upcoming
-                                'rgba(255, 99, 132, 0.7)',  // Red - Past
-                                'rgba(255, 206, 86, 0.7)'   // Yellow - Today
-                            ],
-                            borderColor: [
-                                'rgba(75, 192, 192, 1)',
-                                'rgba(255, 99, 132, 1)',
-                                'rgba(255, 206, 86, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false
-                    }
-                });
-            } catch (error) {
-                console.error('Error creating milestone chart:', error);
+    // Create Milestone Chart
+    const milestoneChartEmpty = document.getElementById('milestone-chart-empty');
+    
+    if (totalCount > 0) {
+        const milestoneCtx = document.getElementById('milestoneChart').getContext('2d');
+        new Chart(milestoneCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'In Progress', 'Pending', 'Delayed'],
+                datasets: [{
+                    data: [completedCount, inProgressCount, pendingCount, delayedCount],
+                    backgroundColor: [
+                        'rgba(40, 167, 69, 0.7)',  // Green - Completed
+                        'rgba(0, 123, 255, 0.7)',  // Blue - In Progress
+                        'rgba(255, 193, 7, 0.7)',  // Yellow - Pending
+                        'rgba(220, 53, 69, 0.7)'   // Red - Delayed
+                    ],
+                    borderColor: [
+                        'rgba(40, 167, 69, 1)',
+                        'rgba(0, 123, 255, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(220, 53, 69, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
             }
-        }
-    };
-    
-    // Initialize both charts
-    createProjectsChart();
-    createMilestoneChart();
+        });
+    } else {
+        milestoneChartEmpty.classList.remove('d-none');
+    }
 });
 </script>
 {% endblock %}

@@ -462,9 +462,27 @@ def analytics(request):
     all_milestones = Milestone.objects.filter(project__in=all_projects)
     total_milestones = all_milestones.count()
     
+    # Milestone completion stats
+    completed_milestones = all_milestones.filter(status='completed').count()
+    pending_milestones = all_milestones.filter(status='pending').count()
+    in_progress_milestones = all_milestones.filter(status='in_progress').count()
+    delayed_milestones = all_milestones.filter(status='delayed').count()
+    
+    # Calculate completion percentage
+    completion_percentage = 0
+    if total_milestones > 0:
+        completion_percentage = round((completed_milestones / total_milestones) * 100)
+    
     from django.utils import timezone
     today = timezone.now().date()
     
+    # Calculate overdue milestones (due date in past but not completed)
+    overdue_milestones = all_milestones.filter(
+        due_date__lt=today,
+        status__in=['pending', 'in_progress', 'delayed']
+    ).count()
+    
+    # Regular milestone time stats
     upcoming_milestones = all_milestones.filter(due_date__gt=today).count()
     past_milestones = all_milestones.filter(due_date__lt=today).count()
     today_milestones = all_milestones.filter(due_date=today).count()
@@ -496,13 +514,34 @@ def analytics(request):
         'upcoming': upcoming_milestones,
         'past': past_milestones,
         'today': today_milestones,
+        'completed': completed_milestones,
+        'pending': pending_milestones,
+        'in_progress': in_progress_milestones,
+        'delayed': delayed_milestones,
+        'overdue': overdue_milestones,
+        'completion_percentage': completion_percentage
     }
+    
+    # Get top 3 projects by number of milestones
+    projects_by_milestones = []
+    for project in all_projects:
+        milestone_count = Milestone.objects.filter(project=project).count()
+        projects_by_milestones.append({
+            'id': project.id,
+            'name': project.name,
+            'milestone_count': milestone_count
+        })
+    
+    # Sort by milestone count (descending)
+    projects_by_milestones.sort(key=lambda x: x['milestone_count'], reverse=True)
+    top_projects = projects_by_milestones[:3]  # Get top 3
     
     return render(request, 'timeline_app/analytics.html', {
         'total_projects': total_projects,
         'active_projects': active_projects,
         'archived_projects': archived_projects,
         'milestone_stats': milestone_completion,
+        'top_projects': top_projects,
         'month_labels': json.dumps(month_labels),
         'month_counts': json.dumps(month_counts),
     })
