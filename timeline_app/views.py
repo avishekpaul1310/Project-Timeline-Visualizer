@@ -719,3 +719,52 @@ def project_diagnostic(request):
 </div>
 {% endblock %}
 """
+
+@login_required
+def milestone_update(request, milestone_id):
+    milestone = get_object_or_404(Milestone, id=milestone_id)
+    project = milestone.project
+    
+    # Check if the user is the owner
+    if project.user != request.user:
+        messages.error(request, "Only the project owner can edit milestones.")
+        return redirect('timeline_app:project_detail', project_id=project.id)
+    
+    if request.method == 'POST':
+        form = MilestoneForm(request.POST, instance=milestone, project=project)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Milestone updated successfully!')
+            return redirect('timeline_app:project_detail', project_id=project.id)
+    else:
+        form = MilestoneForm(instance=milestone, project=project)
+    
+    return render(request, 'timeline_app/milestone_form.html', {
+        'form': form,
+        'project': project,
+        'edit_mode': True,
+        'milestone': milestone
+    })
+
+@login_required
+def update_milestone_status(request, milestone_id, status):
+    milestone = get_object_or_404(Milestone, id=milestone_id)
+    project = milestone.project
+    
+    # Check if the user is the owner
+    if project.user != request.user:
+        messages.error(request, "Only the project owner can update milestone status.")
+        return redirect('timeline_app:project_detail', project_id=project.id)
+    
+    # Validate the status
+    valid_statuses = dict(Milestone.STATUS_CHOICES).keys()
+    if status not in valid_statuses:
+        messages.error(request, f"Invalid status: {status}")
+        return redirect('timeline_app:project_detail', project_id=project.id)
+    
+    # Update the milestone status
+    milestone.status = status
+    milestone.save()
+    
+    messages.success(request, f"Milestone '{milestone.name}' status updated to {status.replace('_', ' ').title()}")
+    return redirect('timeline_app:project_detail', project_id=project.id)

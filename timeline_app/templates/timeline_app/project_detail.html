@@ -116,13 +116,13 @@
                                             Update
                                         </button>
                                         <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton{{ milestone.id }}">
-                                            <li><a class="dropdown-item" href="#">Edit</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'timeline_app:milestone_update' milestone.id %}">Edit</a></li>
                                             <li><hr class="dropdown-divider"></li>
                                             <li><h6 class="dropdown-header">Update Status</h6></li>
-                                            <li><a class="dropdown-item" href="#">Mark Completed</a></li>
-                                            <li><a class="dropdown-item" href="#">Mark In Progress</a></li>
-                                            <li><a class="dropdown-item" href="#">Mark Delayed</a></li>
-                                            <li><a class="dropdown-item" href="#">Mark Pending</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'completed' %}">Mark Completed</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'in_progress' %}">Mark In Progress</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'delayed' %}">Mark Delayed</a></li>
+                                            <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'pending' %}">Mark Pending</a></li>
                                         </ul>
                                     </div>
                                 </td>
