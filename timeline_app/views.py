@@ -445,6 +445,10 @@ def analytics(request):
     owned_projects = Project.objects.filter(user=request.user)
     shared_projects = Project.objects.filter(collaborators=request.user)
     
+    # Add debugging
+    print(f"Owned projects: {owned_projects.count()}")
+    print(f"Shared projects: {shared_projects.count()}")
+    
     # Use a dictionary to prevent duplicates
     project_dict = {p.id: p for p in owned_projects}
     for p in shared_projects:
@@ -452,6 +456,11 @@ def analytics(request):
             project_dict[p.id] = p
             
     all_projects = list(project_dict.values())
+    print(f"Total unique projects: {len(all_projects)}")
+
+     # List all project IDs for debugging
+    project_ids = [p.id for p in all_projects]
+    print(f"Project IDs included in analytics: {project_ids}")
     
     # Basic statistics
     total_projects = len(all_projects)
@@ -461,6 +470,7 @@ def analytics(request):
     # Milestones stats
     all_milestones = Milestone.objects.filter(project__in=all_projects)
     total_milestones = all_milestones.count()
+    print(f"Total milestones found: {total_milestones}")
     
     # Milestone completion stats
     completed_milestones = all_milestones.filter(status='completed').count()
@@ -468,10 +478,16 @@ def analytics(request):
     in_progress_milestones = all_milestones.filter(status='in_progress').count()
     delayed_milestones = all_milestones.filter(status='delayed').count()
     
+    print(f"Completed milestones: {completed_milestones}")
+    print(f"Pending milestones: {pending_milestones}")
+    print(f"In-progress milestones: {in_progress_milestones}")
+    print(f"Delayed milestones: {delayed_milestones}")
+    
     # Calculate completion percentage
     completion_percentage = 0
     if total_milestones > 0:
         completion_percentage = round((completed_milestones / total_milestones) * 100)
+    print(f"Calculated completion percentage: {completion_percentage}%")
     
     from django.utils import timezone
     today = timezone.now().date()
@@ -534,7 +550,7 @@ def analytics(request):
     
     # Sort by milestone count (descending)
     projects_by_milestones.sort(key=lambda x: x['milestone_count'], reverse=True)
-    top_projects = projects_by_milestones[:3]  # Get top 3
+    top_projects = projects_by_milestones
     
     return render(request, 'timeline_app/analytics.html', {
         'total_projects': total_projects,
@@ -546,7 +562,7 @@ def analytics(request):
         'month_counts': json.dumps(month_counts),
     })
 
-# Add this to your views.py file
+
 @login_required
 def project_diagnostic(request):
     """A diagnostic view to help troubleshoot project visibility issues"""
