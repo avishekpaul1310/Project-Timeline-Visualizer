@@ -263,97 +263,57 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Create Projects Chart
-        const projectsChartEmpty = document.getElementById('projects-chart-empty');
-        
-        if (monthLabels.length > 0) {
-            console.log("Creating projects chart");
-            const projectsChartElement = document.getElementById('projectsChart');
-            
-            if (!projectsChartElement) {
-                console.error("Projects chart canvas element not found");
-            } else {
-                const projectCtx = projectsChartElement.getContext('2d');
-                new Chart(projectCtx, {
-                    type: 'line',
-                    data: {
-                        labels: monthLabels,
-                        datasets: [{
-                            label: 'Projects Created',
-                            data: monthCounts,
-                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 2,
-                            tension: 0.1,
-                            fill: true
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    precision: 0
-                                }
+        // In the part that handles the projects chart
+const projectsChartEmpty = document.getElementById('projects-chart-empty');
+console.log("Month labels length:", monthLabels.length);
+console.log("Month counts length:", monthCounts.length);
+
+if (monthLabels && monthLabels.length > 0 && monthCounts && monthCounts.length > 0) {
+    console.log("Creating projects chart with data:", { monthLabels, monthCounts });
+    try {
+        const projectsChartElement = document.getElementById('projectsChart');
+        if (!projectsChartElement) {
+            console.error("Projects chart canvas element not found");
+        } else {
+            console.log("Canvas element found, creating chart...");
+            const projectCtx = projectsChartElement.getContext('2d');
+            new Chart(projectCtx, {
+                type: 'line',
+                data: {
+                    labels: monthLabels,
+                    datasets: [{
+                        label: 'Projects Created',
+                        data: monthCounts,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
                             }
                         }
                     }
-                });
-                console.log("Projects chart created successfully");
-            }
-        } else {
-            console.log("No project data available, showing empty message");
-            if (projectsChartEmpty) {
-                projectsChartEmpty.classList.remove('d-none');
-            }
+                }
+            });
+            console.log("Projects chart created successfully");
         }
-        
-        // Create Milestone Chart
-        const milestoneChartEmpty = document.getElementById('milestone-chart-empty');
-        
-        if (totalCount > 0) {
-            console.log("Creating milestone chart");
-            const milestoneChartElement = document.getElementById('milestoneChart');
-            
-            if (!milestoneChartElement) {
-                console.error("Milestone chart canvas element not found");
-            } else {
-                const milestoneCtx = milestoneChartElement.getContext('2d');
-                new Chart(milestoneCtx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Completed', 'In Progress', 'Pending', 'Delayed'],
-                        datasets: [{
-                            data: [completedCount, inProgressCount, pendingCount, delayedCount],
-                            backgroundColor: [
-                                'rgba(40, 167, 69, 0.7)',  // Green - Completed
-                                'rgba(0, 123, 255, 0.7)',  // Blue - In Progress
-                                'rgba(255, 193, 7, 0.7)',  // Yellow - Pending
-                                'rgba(220, 53, 69, 0.7)'   // Red - Delayed
-                            ],
-                            borderColor: [
-                                'rgba(40, 167, 69, 1)',
-                                'rgba(0, 123, 255, 1)',
-                                'rgba(255, 193, 7, 1)',
-                                'rgba(220, 53, 69, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false
-                    }
-                });
-                console.log("Milestone chart created successfully");
-            }
-        } else {
-            console.log("No milestone data available, showing empty message");
-            if (milestoneChartEmpty) {
-                milestoneChartEmpty.classList.remove('d-none');
-            }
-        }
+    } catch (error) {
+        console.error("Error creating projects chart:", error);
+        projectsChartEmpty.classList.remove('d-none');
+    }
+} else {
+    console.log("No project data available, showing empty message");
+    projectsChartEmpty.classList.remove('d-none');
+}
     } catch (error) {
         console.error("Error in analytics script:", error);
     }
