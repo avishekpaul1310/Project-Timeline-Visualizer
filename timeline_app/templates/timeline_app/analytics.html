@@ -182,34 +182,59 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Get data from Django template
-    const djangoData = document.getElementById('django-data');
-    
-    // Milestone stats
-    const completionPercentage = parseInt(djangoData.dataset.completionPercentage || 0);
-    const completedCount = parseInt(djangoData.dataset.completedCount || 0);
-    const totalCount = parseInt(djangoData.dataset.totalCount || 0);
-    const inProgressCount = parseInt(djangoData.dataset.inProgressCount || 0);
-    const pendingCount = parseInt(djangoData.dataset.pendingCount || 0);
-    const delayedCount = parseInt(djangoData.dataset.delayedCount || 0);
-    const overdueCount = parseInt(djangoData.dataset.overdueCount || 0);
-    
-    // Chart data
-    let monthLabels = [];
-    let monthCounts = [];
-    
-    try {
-        const monthLabelsData = djangoData.dataset.monthLabels;
-        const monthCountsData = djangoData.dataset.monthCounts;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get data from Django template
+        const djangoData = document.getElementById('django-data');
         
-        if (monthLabelsData && monthLabelsData !== '[]') {
-            monthLabels = JSON.parse(monthLabelsData);
-            monthCounts = JSON.parse(monthCountsData);
+        console.log("Django data element:", djangoData);
+        console.log("Raw dataset attributes:", djangoData.dataset);
+        
+        // Milestone stats
+        const completionPercentage = parseInt(djangoData.dataset.completionPercentage || 0);
+        const completedCount = parseInt(djangoData.dataset.completedCount || 0);
+        const totalCount = parseInt(djangoData.dataset.totalCount || 0);
+        const inProgressCount = parseInt(djangoData.dataset.inProgressCount || 0);
+        const pendingCount = parseInt(djangoData.dataset.pendingCount || 0);
+        const delayedCount = parseInt(djangoData.dataset.delayedCount || 0);
+        const overdueCount = parseInt(djangoData.dataset.overdueCount || 0);
+        
+        console.log("Parsed milestone stats:", {
+            completionPercentage,
+            completedCount,
+            totalCount,
+            inProgressCount,
+            pendingCount,
+            delayedCount,
+            overdueCount
+        });
+
+        console.log("Direct attribute access:", {
+            completionPercentage: djangoData.getAttribute('data-completion-percentage'),
+            completedCount: djangoData.getAttribute('data-completed-count'),
+            totalCount: djangoData.getAttribute('data-total-count')
+        });
+        
+        // Chart data
+        let monthLabels = [];
+        let monthCounts = [];
+        
+        try {
+            const monthLabelsData = djangoData.dataset.monthLabels;
+            const monthCountsData = djangoData.dataset.monthCounts;
+            
+            console.log("Month labels data:", monthLabelsData);
+            console.log("Month counts data:", monthCountsData);
+            
+            if (monthLabelsData && monthLabelsData !== '[]') {
+                monthLabels = JSON.parse(monthLabelsData);
+                monthCounts = JSON.parse(monthCountsData);
+            }
+            
+            console.log("Parsed month labels:", monthLabels);
+            console.log("Parsed month counts:", monthCounts);
+        } catch (error) {
+            console.error('Error parsing chart data:', error);
         }
-    } catch (error) {
-        console.error('Error parsing chart data:', error);
-    }
     
     // Update milestone statistics
     document.getElementById('completion-percentage').textContent = completionPercentage + '%';

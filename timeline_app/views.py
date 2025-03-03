@@ -537,8 +537,10 @@ def analytics(request):
         'overdue': overdue_milestones,
         'completion_percentage': completion_percentage
     }
+
+    print(f"Final milestone stats: {milestone_completion}")
+    print(f"Completion percentage being sent to template: {completion_percentage}")
     
-    # Get top 3 projects by number of milestones
     projects_by_milestones = []
     for project in all_projects:
         milestone_count = Milestone.objects.filter(project=project).count()
@@ -552,7 +554,7 @@ def analytics(request):
     projects_by_milestones.sort(key=lambda x: x['milestone_count'], reverse=True)
     top_projects = projects_by_milestones
     
-    return render(request, 'timeline_app/analytics.html', {
+    context = {
         'total_projects': total_projects,
         'active_projects': active_projects,
         'archived_projects': archived_projects,
@@ -560,7 +562,11 @@ def analytics(request):
         'top_projects': top_projects,
         'month_labels': json.dumps(month_labels),
         'month_counts': json.dumps(month_counts),
-    })
+    }
+    
+    print(f"Context being sent to template: {context}")
+    
+    return render(request, 'timeline_app/analytics.html', context)
 
 
 @login_required
