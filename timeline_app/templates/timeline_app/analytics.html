@@ -231,31 +231,52 @@ document.addEventListener('DOMContentLoaded', function() {
         overdueLabel.classList.add('text-white');
     }
     
-    // Projects Chart - Fix for the project chart
+    // Projects Chart - Improved handling for the project chart
     try {
-        const rawMonthLabels = djangoData.getAttribute('data-month-labels');
-        const rawMonthCounts = djangoData.getAttribute('data-month-counts');
+        let rawMonthLabels = djangoData.getAttribute('data-month-labels');
+        let rawMonthCounts = djangoData.getAttribute('data-month-counts');
         
-        console.log("Raw month data:", { rawMonthLabels, rawMonthCounts });
+        console.log("Raw month labels:", rawMonthLabels);
+        console.log("Raw month counts:", rawMonthCounts);
         
-        // Parse the data - handle the string format correctly
-        let monthLabels, monthCounts;
-        
-        // Special handling for JSON parsing
-        try {
-            monthLabels = JSON.parse(rawMonthLabels || '[]');
-            monthCounts = JSON.parse(rawMonthCounts || '[]');
-            console.log("Parsed chart data:", { monthLabels, monthCounts });
-        } catch (parseError) {
-            console.error("Error parsing month data:", parseError);
-            monthLabels = [];
-            monthCounts = [];
+        // Clean up the JSON strings if needed
+        if (rawMonthLabels) {
+            rawMonthLabels = rawMonthLabels.replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
+        }
+        if (rawMonthCounts) {
+            rawMonthCounts = rawMonthCounts.replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
         }
         
+        // Fallback to empty arrays if the data is invalid
+        let monthLabels = [];
+        let monthCounts = [];
+        
+        // Try to parse the JSON data
+        try {
+            if (rawMonthLabels && rawMonthLabels !== 'null' && rawMonthLabels !== '""') {
+                monthLabels = JSON.parse(rawMonthLabels);
+            }
+            
+            if (rawMonthCounts && rawMonthCounts !== 'null' && rawMonthCounts !== '""') {
+                monthCounts = JSON.parse(rawMonthCounts);
+            }
+            
+            console.log("Parsed month labels:", monthLabels);
+            console.log("Parsed month counts:", monthCounts);
+        } catch (parseError) {
+            console.error("Error parsing month data:", parseError);
+            // Continue with empty arrays
+        }
+        
+        // Get the chart elements
         const projectsChartCanvas = document.getElementById('projectsChart');
         const projectsChartEmpty = document.getElementById('projects-chart-empty');
         
-        if (monthLabels.length > 0 && monthCounts.length > 0 && projectsChartCanvas) {
+        // Proceed with creating the chart only if we have valid data
+        if (Array.isArray(monthLabels) && monthLabels.length > 0 && 
+            Array.isArray(monthCounts) && monthCounts.length > 0 && 
+            projectsChartCanvas) {
+            
             console.log("Creating projects chart");
             
             // Hide the empty message if it exists
@@ -300,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     } catch (error) {
-        console.error("Error with projects chart:", error);
+        console.error("Main chart error:", error);
         const projectsChartEmpty = document.getElementById('projects-chart-empty');
         if (projectsChartEmpty) {
             projectsChartEmpty.classList.remove('d-none');

@@ -458,7 +458,7 @@ def analytics(request):
     all_projects = list(project_dict.values())
     print(f"Total unique projects: {len(all_projects)}")
 
-     # List all project IDs for debugging
+    # List all project IDs for debugging
     project_ids = [p.id for p in all_projects]
     print(f"Project IDs included in analytics: {project_ids}")
     
@@ -541,6 +541,26 @@ def analytics(request):
     print(f"Final milestone stats: {milestone_completion}")
     print(f"Completion percentage being sent to template: {completion_percentage}")
     
+    # Format the month data as JSON with explicit dumps
+    import json
+    
+    month_labels_json = json.dumps(month_labels)
+    month_counts_json = json.dumps(month_counts)
+    
+    # Test the JSON parsing to make sure it's valid
+    try:
+        test_parse = json.loads(month_labels_json)
+        test_parse = json.loads(month_counts_json)
+        print(f"JSON validation successful:")
+        print(f"Month labels: {month_labels_json}")
+        print(f"Month counts: {month_counts_json}")
+    except json.JSONDecodeError as e:
+        print(f"JSON validation failed: {e}")
+        # Provide fallback values
+        month_labels_json = "[]"
+        month_counts_json = "[]"
+    
+    # Get projects by milestones count
     projects_by_milestones = []
     for project in all_projects:
         milestone_count = Milestone.objects.filter(project=project).count()
@@ -560,8 +580,8 @@ def analytics(request):
         'archived_projects': archived_projects,
         'milestone_stats': milestone_completion,
         'top_projects': top_projects,
-        'month_labels': json.dumps(month_labels),
-        'month_counts': json.dumps(month_counts),
+        'month_labels': month_labels_json,
+        'month_counts': month_counts_json,
     }
     
     print(f"Context being sent to template: {context}")
