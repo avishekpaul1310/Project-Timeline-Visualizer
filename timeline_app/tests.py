@@ -260,7 +260,7 @@ class CollaborationTests(TimelineAppBaseTestCase):
             follow=True
         )
         
-        # Should see access denied message
+        # Should see access denied message - checking for partial text to be more robust
         self.assertContains(response, "You don't have permission to edit this project")
         
         # Project name should not be updated
@@ -476,7 +476,7 @@ class SecurityAndPermissionTests(TimelineAppBaseTestCase):
             follow=True
         )
         
-        # Should be redirected with error message
+        # Check for the presence of the error message without requiring exact matching
         self.assertContains(response, "You don't have permission to view this project")
     
     def test_unauthorized_milestone_creation(self):
