@@ -260,9 +260,8 @@ class CollaborationTests(TimelineAppBaseTestCase):
             follow=True
         )
         
-        # The exact error message in the HTML is:
-        # "You don't have permission to edit this project. Only the project owner can make changes."
-        self.assertContains(response, "You don't have permission to edit this project. Only the project owner can make changes.")
+        # Using a partial match approach that works regardless of encoding
+        self.assertContains(response, "permission to edit this project")
         
         # Project name should not be updated
         self.project.refresh_from_db()
@@ -477,8 +476,8 @@ class SecurityAndPermissionTests(TimelineAppBaseTestCase):
             follow=True
         )
         
-        # The exact error message in the HTML is: "You don't have permission to view this project."
-        self.assertContains(response, "You don't have permission to view this project.")
+        # Using a partial match approach that works regardless of encoding
+        self.assertContains(response, "permission to view this project")
     
     def test_unauthorized_milestone_creation(self):
         """Test that only project owner can create milestones"""
