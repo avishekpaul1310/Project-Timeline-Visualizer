@@ -23,7 +23,6 @@ def dashboard(request):
             user=request.user, 
             is_archived=False
         )
-        print(f"User {request.user.username} has {owned_projects.count()} owned projects")
         
         # Get projects shared with the user (where user is a collaborator)
         shared_projects = Project.objects.filter(
@@ -32,32 +31,37 @@ def dashboard(request):
         ).exclude(
             user=request.user  # Exclude projects where user is also the owner
         )
-        print(f"User {request.user.username} has {shared_projects.count()} shared projects")
         
         # Combine the querysets
         all_projects = list(owned_projects) + list(shared_projects)
-        print(f"Total projects for user {request.user.username}: {len(all_projects)}")
         
         # Create data for timeline
         projects_list = []
         for p in all_projects:
-            print(f"Adding project to list: {p.id} - {p.name} - Owner: {p.user.username}")
+            # Ensure all values are serializable
             projects_list.append({
-                'name': p.name,
-                'start_date': p.start_date.strftime('%Y-%m-%d'),
-                'end_date': p.end_date.strftime('%Y-%m-%d'),
+                'name': str(p.name),
+                'start_date': p.start_date.strftime('%Y-%m-%d') if p.start_date else '',
+                'end_date': p.end_date.strftime('%Y-%m-%d') if p.end_date else '',
                 'id': p.id
             })
         
-        # Sort by start date
-        projects_list.sort(key=lambda x: x['start_date'])
+        # Sort by start date (with error handling)
+        try:
+            projects_list.sort(key=lambda x: x['start_date'] if x['start_date'] else '9999-12-31')
+        except Exception as e:
+            print(f"Error sorting projects: {e}")
         
-        # Convert to JSON
-        json_data = json.dumps(projects_list)
+        # Convert to JSON with robust error handling
+        try:
+            import json
+            json_data = json.dumps(projects_list)
+        except Exception as e:
+            print(f"Error converting to JSON: {e}")
+            json_data = "[]"
         
     except Exception as e:
         print(f"Error in dashboard: {e}")
-        messages.error(request, "An error occurred while loading your projects.")
         all_projects = []
         json_data = "[]"
     
