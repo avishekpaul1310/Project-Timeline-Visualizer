@@ -1,0 +1,7 @@
+Django==5.1.5
+python-dotenv==1.0.1
+django-crispy-forms==2.1
+crispy-bootstrap4==2023.1
+reportlab==4.1.0
+xhtml2pdf==0.2.13
+Pillow==10.2.0
