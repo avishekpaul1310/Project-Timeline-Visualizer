@@ -835,10 +835,15 @@ def project_gantt_view(request, project_id):
             # Get dependencies for this milestone
             dependencies = list(milestone.dependencies.values_list('id', flat=True))
             
+            # Use start_date if available, otherwise use due_date as both start and end
+            start_date = milestone.start_date if milestone.start_date else milestone.due_date
+            
             milestones_list.append({
                 'id': milestone.id,
                 'name': milestone.name,
+                'start_date': start_date.strftime('%Y-%m-%d'),
                 'due_date': milestone.due_date.strftime('%Y-%m-%d'),
+                'duration': milestone.duration,
                 'status': milestone.status,
                 'description': milestone.description or '',
                 'dependencies': dependencies
