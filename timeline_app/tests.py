@@ -425,6 +425,152 @@ class ArchiveTests(TimelineAppBaseTestCase):
         response = self.client.get(reverse('timeline_app:dashboard'))
         self.assertContains(response, 'Test Project')
 
+class GanttChartTests(TimelineAppBaseTestCase):
+    def test_gantt_view_access(self):
+        """Test that project owner can access the Gantt chart view"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        response = self.client.get(
+            reverse('timeline_app:project_gantt_view', kwargs={'project_id': self.project.id})
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'timeline_app/gantt_view.html')
+        self.assertContains(response, 'Gantt Chart')
+        self.assertContains(response, self.project.name)
+    
+    def test_collaborator_gantt_view_access(self):
+        """Test that collaborators can access the Gantt chart view"""
+        # Add collaborator to project
+        self.project.collaborators.add(self.collaborator)
+        
+        # Login as collaborator
+        self.client.login(username='collaborator', password='collabpass123')
+        
+        response = self.client.get(
+            reverse('timeline_app:project_gantt_view', kwargs={'project_id': self.project.id})
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'timeline_app/gantt_view.html')
+    
+    def test_unauthorized_gantt_view_access(self):
+        """Test that users without permission cannot access the Gantt chart view"""
+        # Create another user
+        other_user = User.objects.create_user(
+            username='otheruser',
+            email='otheruser@example.com',
+            password='otherpass123'
+        )
+        
+        # Login as the other user
+        self.client.login(username='otheruser', password='otherpass123')
+        
+        # Try to access Gantt view
+        response = self.client.get(
+            reverse('timeline_app:project_gantt_view', kwargs={'project_id': self.project.id}),
+            follow=True
+        )
+        
+        # Should be redirected with error message
+        self.assertContains(response, "You don't have permission to view this project")
+    
+    def test_update_milestone_dates(self):
+        """Test updating milestone dates via AJAX"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Prepare date data
+        updated_start_date = (self.project.start_date + timedelta(days=5)).strftime('%Y-%m-%d')
+        updated_due_date = (self.project.start_date + timedelta(days=10)).strftime('%Y-%m-%d')
+        
+        data = {
+            'start_date': updated_start_date,
+            'due_date': updated_due_date
+        }
+        
+        # Make AJAX request
+        response = self.client.post(
+            reverse('timeline_app:update_milestone_dates', kwargs={'milestone_id': self.milestone.id}),
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        
+        # Check the response JSON
+        response_data = json.loads(response.content)
+        self.assertTrue(response_data['success'])
+        self.assertEqual(response_data['start_date'], updated_start_date)
+        self.assertEqual(response_data['due_date'], updated_due_date)
+        
+        # Check that the milestone was updated in database
+        self.milestone.refresh_from_db()
+        self.assertEqual(self.milestone.start_date.strftime('%Y-%m-%d'), updated_start_date)
+        self.assertEqual(self.milestone.due_date.strftime('%Y-%m-%d'), updated_due_date)
+    
+    def test_unauthorized_milestone_update(self):
+        """Test that only project owner can update milestone dates"""
+        # Add collaborator to project
+        self.project.collaborators.add(self.collaborator)
+        
+        # Login as collaborator
+        self.client.login(username='collaborator', password='collabpass123')
+        
+        # Prepare date data
+        updated_start_date = (self.project.start_date + timedelta(days=5)).strftime('%Y-%m-%d')
+        updated_due_date = (self.project.start_date + timedelta(days=10)).strftime('%Y-%m-%d')
+        
+        data = {
+            'start_date': updated_start_date,
+            'due_date': updated_due_date
+        }
+        
+        # Try to update milestone
+        response = self.client.post(
+            reverse('timeline_app:update_milestone_dates', kwargs={'milestone_id': self.milestone.id}),
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        # Should get permission denied
+        self.assertEqual(response.status_code, 403)
+        
+        # Check that milestone dates were not changed
+        original_start_date = self.milestone.start_date
+        original_due_date = self.milestone.due_date
+        
+        self.milestone.refresh_from_db()
+        self.assertEqual(self.milestone.start_date, original_start_date)
+        self.assertEqual(self.milestone.due_date, original_due_date)
+    
+    def test_invalid_date_range_update(self):
+        """Test validation for invalid date ranges in milestone updates"""
+        self.client.login(username='testuser', password='testpass123')
+        
+        # Prepare invalid date data (start date after due date)
+        invalid_start_date = (self.project.start_date + timedelta(days=10)).strftime('%Y-%m-%d')
+        invalid_due_date = (self.project.start_date + timedelta(days=5)).strftime('%Y-%m-%d')
+        
+        data = {
+            'start_date': invalid_start_date,
+            'due_date': invalid_due_date
+        }
+        
+        # Make AJAX request
+        response = self.client.post(
+            reverse('timeline_app:update_milestone_dates', kwargs={'milestone_id': self.milestone.id}),
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        # Should receive error response
+        self.assertEqual(response.status_code, 400)
+        
+        # Check error message
+        response_data = json.loads(response.content)
+        self.assertIn('error', response_data)
+        self.assertEqual(response_data['error'], 'Start date cannot be after due date')
+
 class ExportTests(TimelineAppBaseTestCase):
     def test_export_project_as_csv(self):
         """Test exporting a project as CSV"""
