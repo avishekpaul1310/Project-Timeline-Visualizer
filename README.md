@@ -17,6 +17,7 @@ A Django web application that provides interactive visualization for project tim
 - [Usage](#usage)
 - [Project Structure](#project-structure)
 - [API Documentation](#api-documentation)
+- [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -28,14 +29,16 @@ Project Timeline Visualizer is a web-based tool designed to help project manager
 
 - **Interactive Gantt Charts**: Visualize project schedules with drag-and-drop functionality
 - **Milestone Tracking**: Set and monitor key project milestones
-- **Dependency Management**: Define and visualize task dependencies
-- **Resource Allocation**: Assign team members to tasks and track workload
-- **Progress Tracking**: Update and monitor task completion status
+- **Dependency Management**: Define and visualize task dependencies between milestones
+- **Progress Tracking**: Update and monitor milestone completion status (Pending, In Progress, Completed, Delayed)
 - **Timeline Sharing**: Share project timelines with team members and stakeholders
-- **Export Options**: Export timelines as PDF, PNG, or CSV
+- **Export Options**: Export timelines as PDF, CSV, or PNG
+- **Analytics Dashboard**: View project and milestone statistics with interactive charts
+- **Notifications System**: Receive alerts for upcoming milestones and shared projects
 - **Responsive Design**: Access timelines on desktop and mobile devices
 - **User Authentication**: Secure user login and project access control
 - **Multiple Project Support**: Manage multiple project timelines simultaneously
+- **Project Archiving**: Archive completed projects while keeping them accessible
 
 ## Screenshots
 
@@ -45,10 +48,14 @@ Project Timeline Visualizer is a web-based tool designed to help project manager
 
 - **Backend**: Django 4.x, Python 3.x
 - **Frontend**: JavaScript, HTML5, CSS3
-- **Data Visualization**: D3.js/Chart.js
+- **Data Visualization**: Chart.js, Frappe Gantt
 - **Database**: SQLite (development), PostgreSQL (production)
 - **Authentication**: Django Authentication System
-- **Responsive Design**: Bootstrap/Custom CSS
+- **UI Framework**: Bootstrap 5
+- **Icons**: Font Awesome
+- **Forms**: django-crispy-forms with crispy-bootstrap4
+- **PDF Generation**: xhtml2pdf, reportlab
+- **Image Processing**: Pillow
 
 ## Installation
 
@@ -77,52 +84,75 @@ Project Timeline Visualizer is a web-based tool designed to help project manager
    pip install -r requirements.txt
    ```
 
-4. Set up the database:
+4. Create a `.env` file in the project root directory:
+   ```
+   SECRET_KEY=your-secret-key-here
+   DEBUG=True
+   ALLOWED_HOSTS=
+   ```
+
+5. Set up the database:
    ```bash
    python manage.py migrate
    ```
 
-5. Create a superuser (for admin access):
+6. Create a superuser (for admin access):
    ```bash
    python manage.py createsuperuser
    ```
 
-6. Run the development server:
+7. Run the development server:
    ```bash
    python manage.py runserver
    ```
 
-7. Access the application at `http://127.0.0.1:8000/`
+8. Access the application at `http://127.0.0.1:8000/`
 
 ## Usage
 
 ### Creating a New Project Timeline
 
 1. Log in to the application
-2. Click on "New Project" button
-3. Enter project details (name, description, start date, end date)
-4. Click "Create" to generate the timeline
+2. Click on "Create New Project" button on the dashboard
+3. Enter project details (name, start date, end date)
+4. Click "Create" to generate the project
 
-### Adding Tasks to Timeline
+### Adding Milestones to Timeline
 
 1. Open your project timeline
-2. Click "Add Task" button
-3. Fill in task details (name, duration, start date, dependencies)
-4. Click "Save" to add the task to the timeline
+2. Click "Add Milestone" button
+3. Fill in milestone details (name, start date, due date, dependencies)
+4. Click "Create Milestone" to add the milestone to the timeline
+
+### Visualizing with Gantt Chart
+
+1. Open your project
+2. Click on "Gantt Chart" tab
+3. View milestones on the interactive Gantt chart
+4. As a project owner, you can drag and drop milestones to update dates
+5. Switch between Day, Week, and Month views
+6. Export the Gantt chart as PNG
 
 ### Tracking Progress
 
 1. Open your project timeline
-2. Click on a task to update its status
-3. Set the completion percentage and add notes if needed
-4. Click "Update" to save changes
+2. For each milestone, use the dropdown menu to update its status
+3. Choose from Pending, In Progress, Completed, or Delayed
+4. View progress statistics in the Analytics section
 
 ### Sharing Timeline
 
 1. Open your project timeline
 2. Click on "Share" button
-3. Choose sharing options (view-only or edit)
-4. Copy and share the generated link
+3. Enter the email address of the collaborator (must be a registered user)
+4. Collaborators will receive notifications and can view the project
+
+### Project Analytics
+
+1. Click on "Analytics" in the navigation bar
+2. View project statistics and milestone completion rates
+3. See a breakdown of milestone statuses
+4. Monitor your most complex projects by milestone count
 
 ## Project Structure
 
@@ -135,24 +165,29 @@ Project-Timeline-Visualizer/
 │   └── wsgi.py                # WSGI configuration
 │
 ├── timeline_app/              # Django application folder
-│   ├── models.py              # Data models
+│   ├── models.py              # Data models (Project, Milestone, Notification)
 │   ├── views.py               # View functions
 │   ├── urls.py                # URL patterns
-│   ├── forms.py               # Form definitions
+│   ├── forms.py               # Form definitions (ProjectForm, MilestoneForm)
+│   ├── utils.py               # Utility functions
+│   ├── context_processors.py  # Custom context processors
 │   ├── tests.py               # Test cases
-│   └── admin.py               # Admin interface configuration
+│   ├── admin.py               # Admin interface configuration
+│   └── templates/             # App-specific templates
+│       └── timeline_app/      # Timeline templates
 │
 ├── static/                    # Static files
 │   ├── css/                   # CSS files
 │   ├── js/                    # JavaScript files
 │   └── img/                   # Image files
 │
-├── templates/                 # HTML templates
-│   ├── base.html              # Base template
-│   └── timeline/              # Timeline templates
+├── templates/                 # Project-wide templates
+│   └── registration/          # Authentication templates
 │
 ├── media/                     # User-uploaded files
 │
+├── .env                       # Environment variables
+├── .gitignore                 # Git ignore file
 ├── manage.py                  # Django management script
 ├── requirements.txt           # Project dependencies
 └── README.md                  # Project documentation
@@ -176,6 +211,24 @@ The application provides a RESTful API for programmatic access to timeline data.
 
 API requests require an authentication token that can be obtained via:
 `POST /api/token/` with valid username and password.
+
+## Testing
+
+The application includes a comprehensive test suite covering all major functionality. To run the tests:
+
+```bash
+python manage.py test timeline_app
+```
+
+Tests include:
+- Authentication tests
+- Project CRUD operations
+- Milestone management
+- Collaboration features
+- Gantt chart functionality
+- Notification system
+- Export capabilities
+- Security and permissions
 
 ## Contributing
 
