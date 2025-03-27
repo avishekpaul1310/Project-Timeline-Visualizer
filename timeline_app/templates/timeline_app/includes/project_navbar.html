@@ -1,0 +1,41 @@
+{% comment %}
+Include this file in project detail pages to provide consistent navigation
+Usage:
+{% include 'timeline_app/includes/project_navbar.html' with active_tab='details' %}
+
+Possible values for active_tab:
+- 'details' (project_detail view)
+- 'gantt' (project_gantt_view)
+- 'dashboard' (not implemented yet, for future use)
+{% endcomment %}
+
+<div class="card mb-4">
+    <div class="card-body p-2">
+        <ul class="nav nav-pills">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'details' %}active{% endif %}" 
+                   href="{% url 'timeline_app:project_detail' project.id %}">
+                    <i class="fas fa-info-circle"></i> Details
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'gantt' %}active{% endif %}" 
+                   href="{% url 'timeline_app:project_gantt_view' project.id %}">
+                    <i class="fas fa-chart-bar"></i> Gantt Chart
+                </a>
+            </li>
+            {% if project.user == request.user %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'timeline_app:milestone_create' project.id %}">
+                    <i class="fas fa-plus"></i> Add Milestone
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'timeline_app:share_project' project.id %}">
+                    <i class="fas fa-share-alt"></i> Share
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
