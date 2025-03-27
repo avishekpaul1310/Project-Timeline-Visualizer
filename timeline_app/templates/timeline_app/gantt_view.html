@@ -41,6 +41,33 @@
     .gantt-container .gantt-container {
         overflow: visible;
     }
+
+    @media (max-width: 768px) {
+    .gantt-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .gantt .bar-wrapper {
+        cursor: pointer;
+    }
+    
+    /* Improve touch targets */
+    .gantt .bar {
+        min-width: 24px;
+        min-height: 24px;
+    }
+    
+    /* Make sure the view mode controls don't overflow */
+    .controls .btn-group {
+        display: flex;
+        width: 100%;
+    }
+    
+    .controls .btn {
+        flex: 1;
+    }
+}
 </style>
 {% endblock %}
 
