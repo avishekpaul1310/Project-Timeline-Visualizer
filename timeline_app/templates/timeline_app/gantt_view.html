@@ -41,50 +41,21 @@
     .gantt-container .gantt-container {
         overflow: visible;
     }
-
-    @media (max-width: 768px) {
-    .gantt-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    .gantt .bar-wrapper {
-        cursor: pointer;
-    }
-    
-    /* Improve touch targets */
-    .gantt .bar {
-        min-width: 24px;
-        min-height: 24px;
-    }
-    
-    /* Make sure the view mode controls don't overflow */
-    .controls .btn-group {
-        display: flex;
-        width: 100%;
-    }
-    
-    .controls .btn {
-        flex: 1;
-    }
-}
 </style>
 {% endblock %}
 
 {% block content %}
+{{ milestones_json|json_script:"milestones-data" }}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>{{ project.name }} - Gantt Chart</h2>
     <div>
-        <a href="{% url 'timeline_app:project_detail' project.id %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Back to Project
+        <a href="{% url 'timeline_app:dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
         </a>
-        {% if project.user == request.user %}
-        <a href="{% url 'timeline_app:milestone_create' project.id %}" class="btn btn-primary ms-2">
-            <i class="fas fa-plus"></i> Add Milestone
-        </a>
-        {% endif %}
     </div>
 </div>
+
+{% include 'timeline_app/includes/project_navbar.html' with active_tab='gantt' %}
 
 <div class="card mb-4">
     <div class="card-body">
@@ -182,11 +153,11 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
     // Milestone data from Django context
-    const milestonesData = JSON.parse('{{ milestones_json|escapejs }}');
-    
-    if (milestonesData && milestonesData.length > 0) {
+    document.addEventListener("DOMContentLoaded", function() {
+        const milestonesData = JSON.parse(document.getElementById('milestones-data').textContent);
+        
+        if (milestonesData && milestonesData.length > 0) {
         // Prepare tasks for Gantt chart
         const tasks = milestonesData.map(milestone => {
             // Calculate a sensible end date for each milestone
@@ -284,6 +255,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('.gantt-container').innerHTML = 
             '<div class="alert alert-info text-center">No milestones to display. Add milestones to see the Gantt chart.</div>';
     }
-});
+    });
 </script>
 {% endblock %}
