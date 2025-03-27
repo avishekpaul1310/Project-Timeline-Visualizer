@@ -25,8 +25,9 @@ class ProjectForm(forms.ModelForm):
 class MilestoneForm(forms.ModelForm):
     class Meta:
         model = Milestone
-        fields = ['name', 'due_date', 'status', 'description', 'dependencies']
+        fields = ['name', 'start_date', 'due_date', 'duration', 'status', 'description', 'dependencies']
         widgets = {
+            'start_date': forms.DateInput(attrs={'type': 'date'}),
             'due_date': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.Textarea(attrs={'rows': 3}),
         }
@@ -45,16 +46,44 @@ class MilestoneForm(forms.ModelForm):
             self.fields['dependencies'].label = "Depends on (milestones that must be completed first)"
             self.fields['dependencies'].widget = forms.CheckboxSelectMultiple()
 
-    def clean_due_date(self):
-        due_date = self.cleaned_data.get('due_date')
-        project = self.project  # Use the project passed in __init__
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        due_date = cleaned_data.get('due_date')
+        project = self.project
 
-        if project and due_date:
-            if due_date < project.start_date or due_date > project.end_date:
-                raise ValidationError(
-                    "Milestone due date must be within project start and end dates"
-                )
-        return due_date
+        if start_date and due_date:
+            # Check if start date is before due date
+            if start_date > due_date:
+                raise ValidationError("Start date cannot be after due date")
+            
+            # Check if dates are within project timeframe
+            if project:
+                if start_date < project.start_date:
+                    self.add_error('start_date', "Start date cannot be before project start date")
+                if due_date > project.end_date:
+                    self.add_error('due_date', "Due date cannot be after project end date")
+            
+            # Calculate and update duration
+            from datetime import timedelta
+            duration = (due_date - start_date).days + 1  # +1 to include both start and end dates
+            cleaned_data['duration'] = duration
+        
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # If only due_date is provided, set start_date = due_date
+        if instance.due_date and not instance.start_date:
+            instance.start_date = instance.due_date
+            instance.duration = 1
+        
+        if commit:
+            instance.save()
+            self.save_m2m()
+        
+        return instance
     
 class ProjectShareForm(forms.Form):
     email = forms.EmailField(label="Collaborator's email")
