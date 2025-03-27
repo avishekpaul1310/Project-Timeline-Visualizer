@@ -814,3 +814,43 @@ def update_milestone_status(request, milestone_id, status):
     
     messages.success(request, f"Milestone '{milestone.name}' status updated to {status.replace('_', ' ').title()}")
     return redirect('timeline_app:project_detail', project_id=project.id)
+
+@login_required
+def project_gantt_view(request, project_id):
+    try:
+        # Get the project by ID
+        project = get_object_or_404(Project, id=project_id)
+        
+        # Check if the user has permission (is owner or collaborator)
+        if project.user != request.user and request.user not in project.collaborators.all():
+            messages.error(request, "You don't have permission to view this project.")
+            return redirect('timeline_app:dashboard')
+        
+        # Fetch milestones
+        milestones = Milestone.objects.filter(project=project)
+        
+        # Prepare milestones for JSON serialization
+        milestones_list = []
+        for milestone in milestones:
+            milestones_list.append({
+                'id': milestone.id,
+                'name': milestone.name,
+                'due_date': milestone.due_date.strftime('%Y-%m-%d'),
+                'status': milestone.status,
+                'description': milestone.description or ''
+            })
+        
+        # Convert to JSON
+        import json
+        milestones_json = json.dumps(milestones_list)
+        
+        return render(request, 'timeline_app/gantt_view.html', {
+            'project': project,
+            'milestones': milestones,
+            'milestones_json': milestones_json
+        })
+        
+    except Exception as e:
+        print(f"Error in project_gantt_view: {e}")
+        messages.error(request, "An error occurred while loading the Gantt chart.")
+        return redirect('timeline_app:dashboard')
