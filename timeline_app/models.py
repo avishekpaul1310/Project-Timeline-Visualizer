@@ -32,6 +32,7 @@ class Milestone(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     description = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=100, choices=STATUS_CHOICES, default='pending')
+    dependencies = models.ManyToManyField('self', symmetrical=False, blank=True, related_name='dependent_milestones')
 
     def __str__(self):
         return self.name
