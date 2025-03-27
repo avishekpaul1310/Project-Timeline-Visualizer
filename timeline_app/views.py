@@ -14,6 +14,8 @@ from django.db import models
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 @login_required
 def dashboard(request):
@@ -863,3 +865,60 @@ def project_gantt_view(request, project_id):
         print(f"Error in project_gantt_view: {e}")
         messages.error(request, "An error occurred while loading the Gantt chart.")
         return redirect('timeline_app:dashboard')
+
+@login_required
+@require_POST
+def update_milestone_dates(request, milestone_id):
+    try:
+        # Get the milestone
+        milestone = get_object_or_404(Milestone, id=milestone_id)
+        project = milestone.project
+        
+        # Check if the user is the owner
+        if project.user != request.user:
+            return JsonResponse({'error': 'You do not have permission to update this milestone'}, status=403)
+        
+        # Parse the request data
+        data = json.loads(request.body)
+        start_date = data.get('start_date')
+        due_date = data.get('due_date')
+        
+        # Validate dates
+        from datetime import datetime
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            due_date_obj = datetime.strptime(due_date, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({'error': 'Invalid date format'}, status=400)
+        
+        # Check if dates are within project timeframe
+        if start_date_obj < project.start_date or due_date_obj > project.end_date:
+            return JsonResponse({
+                'error': 'Milestone dates must be within project timeframe'
+            }, status=400)
+        
+        # Check if start_date is before or equal to due_date
+        if start_date_obj > due_date_obj:
+            return JsonResponse({'error': 'Start date cannot be after due date'}, status=400)
+        
+        # Calculate duration
+        from datetime import timedelta
+        duration = (due_date_obj - start_date_obj).days + 1  # Include both start and end dates
+        
+        # Update the milestone
+        milestone.start_date = start_date_obj
+        milestone.due_date = due_date_obj
+        milestone.duration = duration
+        milestone.save()
+        
+        return JsonResponse({
+            'success': True,
+            'id': milestone.id,
+            'start_date': start_date,
+            'due_date': due_date,
+            'duration': duration
+        })
+        
+    except Exception as e:
+        print(f"Error updating milestone dates: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
