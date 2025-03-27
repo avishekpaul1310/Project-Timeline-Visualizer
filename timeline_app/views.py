@@ -832,12 +832,16 @@ def project_gantt_view(request, project_id):
         # Prepare milestones for JSON serialization
         milestones_list = []
         for milestone in milestones:
+            # Get dependencies for this milestone
+            dependencies = list(milestone.dependencies.values_list('id', flat=True))
+            
             milestones_list.append({
                 'id': milestone.id,
                 'name': milestone.name,
                 'due_date': milestone.due_date.strftime('%Y-%m-%d'),
                 'status': milestone.status,
-                'description': milestone.description or ''
+                'description': milestone.description or '',
+                'dependencies': dependencies
             })
         
         # Convert to JSON
