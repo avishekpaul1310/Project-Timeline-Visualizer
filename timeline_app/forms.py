@@ -25,7 +25,7 @@ class ProjectForm(forms.ModelForm):
 class MilestoneForm(forms.ModelForm):
     class Meta:
         model = Milestone
-        fields = ['name', 'due_date', 'status', 'description']
+        fields = ['name', 'due_date', 'status', 'description', 'dependencies']
         widgets = {
             'due_date': forms.DateInput(attrs={'type': 'date'}),
             'description': forms.Textarea(attrs={'rows': 3}),
@@ -34,6 +34,16 @@ class MilestoneForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.project = kwargs.pop('project', None)
         super().__init__(*args, **kwargs)
+        
+        # Limit dependencies to milestones within the same project
+        # Exclude the current milestone if we're editing
+        if self.project:
+            milestone_queryset = Milestone.objects.filter(project=self.project)
+            if self.instance.pk:
+                milestone_queryset = milestone_queryset.exclude(pk=self.instance.pk)
+            self.fields['dependencies'].queryset = milestone_queryset
+            self.fields['dependencies'].label = "Depends on (milestones that must be completed first)"
+            self.fields['dependencies'].widget = forms.CheckboxSelectMultiple()
 
     def clean_due_date(self):
         due_date = self.cleaned_data.get('due_date')
