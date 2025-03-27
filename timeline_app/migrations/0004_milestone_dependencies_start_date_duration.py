@@ -24,4 +24,4 @@ class Migration(migrations.Migration):
             model_name='milestone',
             name='duration',
             field=models.PositiveIntegerField(default=1, help_text='Duration in days'),
-        ),
+        ),]
