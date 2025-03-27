@@ -26,6 +26,8 @@ class Milestone(models.Model):
     )
 
     name = models.CharField(max_length=200)
+    start_date = models.DateField(null=True, blank=True)
+    duration = models.PositiveIntegerField(default=1, help_text="Duration in days")
     due_date = models.DateField()
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
