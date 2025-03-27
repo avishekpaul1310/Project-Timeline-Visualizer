@@ -82,20 +82,13 @@ def export_project_to_csv(project):
     return response
 
 def export_project_to_pdf(request, project):
-    """Export project details to PDF using xhtml2pdf"""
-    template = get_template('timeline_app/project_pdf_template.html')
-    context = {
-        'project': project,
-        'milestones': project.milestone_set.all(),
-        'request': request,
-    }
-    html = template.render(context)
-    
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{project.name}.pdf"'
-    
-    # Convert HTML to PDF
-    pisa_status = pisa.CreatePDF(html, dest=response)
-    if pisa_status.err:
-        return HttpResponse('Error generating PDF', status=500)
+    """Placeholder for PDF export functionality"""
+    response = HttpResponse(content_type='text/plain')
+    response['Content-Disposition'] = f'attachment; filename="{project.name}.txt"'
+    response.write(f"Project: {project.name}\n")
+    response.write(f"Date Range: {project.start_date} to {project.end_date}\n")
+    response.write(f"Owner: {project.user.username}\n\n")
+    response.write("Milestones:\n")
+    for milestone in project.milestone_set.all():
+        response.write(f"- {milestone.name}: {milestone.due_date}\n")
     return response
