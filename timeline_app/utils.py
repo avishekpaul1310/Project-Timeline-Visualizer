@@ -3,13 +3,6 @@ from datetime import datetime, timedelta
 from .models import Milestone, Notification
 import csv
 from django.http import HttpResponse
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
-from xhtml2pdf import pisa
-from django.template.loader import get_template
 
 def check_upcoming_milestones():
     """Check for milestones due within the next 3 days and create notifications"""
@@ -82,7 +75,7 @@ def export_project_to_csv(project):
     return response
 
 def export_project_to_pdf(request, project):
-    """Placeholder for PDF export functionality"""
+    """Temporary plain text export instead of PDF"""
     response = HttpResponse(content_type='text/plain')
     response['Content-Disposition'] = f'attachment; filename="{project.name}.txt"'
     response.write(f"Project: {project.name}\n")
