@@ -1,0 +1,262 @@
+{% extends 'timeline_app/base.html' %}
+
+{% block title %}Project Gantt Chart - {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gantt-container {
+        position: relative;
+        overflow: auto;
+        margin-top: 20px;
+    }
+    
+    .controls {
+        margin-bottom: 15px;
+    }
+    
+    .milestone-completed {
+        background-color: #28a745;
+    }
+    
+    .milestone-in-progress {
+        background-color: #007bff;
+    }
+    
+    .milestone-pending {
+        background-color: #ffc107;
+    }
+    
+    .milestone-delayed {
+        background-color: #dc3545;
+    }
+    
+    .gantt-info-panel {
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    /* Fix for Safari overflow issue */
+    .gantt-container .gantt-container {
+        overflow: visible;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ project.name }} - Gantt Chart</h2>
+    <div>
+        <a href="{% url 'timeline_app:project_detail' project.id %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Project
+        </a>
+        {% if project.user == request.user %}
+        <a href="{% url 'timeline_app:milestone_create' project.id %}" class="btn btn-primary ms-2">
+            <i class="fas fa-plus"></i> Add Milestone
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="gantt-info-panel">
+            <div class="row">
+                <div class="col-md-4">
+                    <p><strong>Project Duration:</strong> {{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Owner:</strong> {{ project.user.username }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Total Milestones:</strong> {{ milestones|length }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="btn-group">
+                <button id="day-view" class="btn btn-outline-primary">Day</button>
+                <button id="week-view" class="btn btn-outline-primary">Week</button>
+                <button id="month-view" class="btn btn-outline-primary active">Month</button>
+            </div>
+        </div>
+        
+        <div class="gantt-container">
+            <svg id="gantt"></svg>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h4>Milestones List</h4>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        {% if project.user == request.user %}
+                        <th>Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for milestone in milestones %}
+                    <tr>
+                        <td>{{ milestone.name }}</td>
+                        <td>{{ milestone.due_date }}</td>
+                        <td>
+                            {% if milestone.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif milestone.status == 'in_progress' %}
+                            <span class="badge bg-primary">In Progress</span>
+                            {% elif milestone.status == 'delayed' %}
+                            <span class="badge bg-danger">Delayed</span>
+                            {% else %} <!-- pending -->
+                            <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                        </td>
+                        {% if project.user == request.user %}
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton{{ milestone.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Update
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton{{ milestone.id }}">
+                                    <li><a class="dropdown-item" href="{% url 'timeline_app:milestone_update' milestone.id %}">Edit</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Update Status</h6></li>
+                                    <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'completed' %}">Mark Completed</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'in_progress' %}">Mark In Progress</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'delayed' %}">Mark Delayed</a></li>
+                                    <li><a class="dropdown-item" href="{% url 'timeline_app:update_milestone_status' milestone.id 'pending' %}">Mark Pending</a></li>
+                                </ul>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if project.user == request.user %}4{% else %}3{% endif %}" class="text-center">No milestones yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Milestone data from Django context
+    const milestonesData = JSON.parse('{{ milestones_json|escapejs }}');
+    
+    if (milestonesData && milestonesData.length > 0) {
+        // Prepare tasks for Gantt chart
+        const tasks = milestonesData.map(milestone => {
+            // Calculate a sensible end date for each milestone
+            // For simplicity, we'll use 1 day duration for each milestone
+            const startDate = new Date(milestone.due_date);
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 1);
+            
+            // Determine colors based on status
+            let custom_class = '';
+            switch(milestone.status) {
+                case 'completed':
+                    custom_class = 'milestone-completed';
+                    break;
+                case 'in_progress':
+                    custom_class = 'milestone-in-progress';
+                    break;
+                case 'delayed':
+                    custom_class = 'milestone-delayed';
+                    break;
+                default:
+                    custom_class = 'milestone-pending';
+            }
+            
+            return {
+                id: milestone.id.toString(),
+                name: milestone.name,
+                start: startDate,
+                end: endDate,
+                progress: milestone.status === 'completed' ? 100 : 
+                           milestone.status === 'in_progress' ? 50 : 0,
+                custom_class: custom_class
+            };
+        });
+        
+        // Initialize Gantt Chart
+        const gantt = new Gantt("#gantt", tasks, {
+            header_height: 50,
+            column_width: 30,
+            step: 24,
+            view_modes: ['Day', 'Week', 'Month'],
+            bar_height: 20,
+            bar_corner_radius: 3,
+            arrow_curve: 5,
+            padding: 18,
+            view_mode: 'Month',
+            date_format: 'YYYY-MM-DD',
+            custom_popup_html: function(task) {
+                // Format the popup content
+                const milestone = milestonesData.find(m => m.id.toString() === task.id);
+                const statusText = {
+                    'completed': 'Completed',
+                    'in_progress': 'In Progress',
+                    'delayed': 'Delayed',
+                    'pending': 'Pending'
+                }[milestone.status];
+                
+                return `
+                    <div class="card p-2">
+                        <h5>${task.name}</h5>
+                        <p><strong>Due Date:</strong> ${milestone.due_date}</p>
+                        <p><strong>Status:</strong> ${statusText}</p>
+                        ${milestone.description ? `<p><strong>Description:</strong> ${milestone.description}</p>` : ''}
+                    </div>
+                `;
+            }
+        });
+        
+        // Handle view mode changes
+        document.getElementById('day-view').addEventListener('click', function() {
+            gantt.change_view_mode('Day');
+            updateActiveButton('day-view');
+        });
+        
+        document.getElementById('week-view').addEventListener('click', function() {
+            gantt.change_view_mode('Week');
+            updateActiveButton('week-view');
+        });
+        
+        document.getElementById('month-view').addEventListener('click', function() {
+            gantt.change_view_mode('Month');
+            updateActiveButton('month-view');
+        });
+        
+        function updateActiveButton(activeId) {
+            // Remove active class from all buttons
+            document.querySelectorAll('.controls .btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // Add active class to the clicked button
+            document.getElementById(activeId).classList.add('active');
+        }
+    } else {
+        // No milestones, show a message
+        document.querySelector('.gantt-container').innerHTML = 
+            '<div class="alert alert-info text-center">No milestones to display. Add milestones to see the Gantt chart.</div>';
+    }
+});
+</script>
+{% endblock %}
