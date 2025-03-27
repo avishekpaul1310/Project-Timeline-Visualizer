@@ -14,9 +14,6 @@
         <a href="{% url 'timeline_app:milestone_create' project.id %}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Milestone
         </a>
-        <a href="{% url 'timeline_app:project_gantt_view' project.id %}" class="btn btn-info me-2">
-            <i class="fas fa-chart-bar"></i> Gantt Chart
-        </a>
     </div>
     {% endif %}
     
@@ -44,8 +41,15 @@
                 <i class="fas fa-share-alt"></i> Share
             </a>
         {% endif %}
+        
+        <!-- Gantt Chart button for everyone -->
+        <a href="{% url 'timeline_app:project_gantt_view' project.id %}" class="btn btn-info">
+            <i class="fas fa-chart-bar"></i> Gantt Chart
+        </a>
     </div>
 </div>
+
+{% include 'timeline_app/includes/project_navbar.html' with active_tab='details' %}
 
 <div class="row mb-4">
     <div class="col-md-6">

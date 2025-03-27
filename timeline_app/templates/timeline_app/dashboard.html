@@ -105,6 +105,15 @@
                         <small class="text-muted d-block">
                             End: {{ project.end_date|date:"M d, Y" }}
                         </small>
+                        <!-- Added Gantt Chart link -->
+                        <div class="mt-2">
+                            <a href="{% url 'timeline_app:project_detail' project.id %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i> View Details
+                            </a>
+                            <a href="{% url 'timeline_app:project_gantt_view' project.id %}" class="btn btn-sm btn-info">
+                                <i class="fas fa-chart-bar"></i> Gantt Chart
+                            </a>
+                        </div>
                     </a>
                     {% empty %}
                     <div class="text-center p-4">

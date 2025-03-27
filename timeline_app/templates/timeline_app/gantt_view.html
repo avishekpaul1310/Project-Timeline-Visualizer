@@ -8,6 +8,8 @@
         position: relative;
         overflow: auto;
         margin-top: 20px;
+        width: 100%;
+        min-height: 400px;
     }
     
     .controls {
@@ -41,11 +43,60 @@
     .gantt-container .gantt-container {
         overflow: visible;
     }
+    
+    /* Fix for arrows not being visible */
+    .gantt .arrow {
+        z-index: 1;
+    }
+    
+    /* Improve visibility of milestone bars */
+    .gantt .bar {
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Add hover effect */
+    .gantt .bar:hover {
+        filter: brightness(85%);
+    }
+    
+    /* Fix for long task names */
+    .gantt .bar-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 150px;
+    }
+    
+    @media (max-width: 768px) {
+        .gantt-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .gantt .bar-wrapper {
+            cursor: pointer;
+        }
+        
+        /* Improve touch targets */
+        .gantt .bar {
+            min-width: 24px;
+            min-height: 24px;
+        }
+        
+        /* Make sure the view mode controls don't overflow */
+        .controls .btn-group {
+            display: flex;
+            width: 100%;
+        }
+        
+        .controls .btn {
+            flex: 1;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-{{ milestones_json|json_script:"milestones-data" }}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>{{ project.name }} - Gantt Chart</h2>
     <div>
@@ -56,6 +107,67 @@
 </div>
 
 {% include 'timeline_app/includes/project_navbar.html' with active_tab='gantt' %}
+
+<div class="card mb-4 help-section">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-question-circle me-2"></i> How to Use the Gantt Chart
+        </h5>
+        <button class="btn btn-sm btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#helpContent">
+            <i class="fas fa-chevron-down"></i>
+        </button>
+    </div>
+    <div class="collapse" id="helpContent">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>View Features:</h6>
+                    <ul>
+                        <li><strong>Zoom Level:</strong> Switch between Day, Week, and Month views using the buttons above the chart.</li>
+                        <li><strong>Scroll:</strong> Use horizontal scroll to navigate through time periods.</li>
+                        <li><strong>Milestone Details:</strong> Hover over a milestone to see its details.</li>
+                        <li><strong>Dependencies:</strong> Arrows between milestones represent dependencies.</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    {% if project.user == request.user %}
+                    <h6>Edit Features (Project Owner Only):</h6>
+                    <ul>
+                        <li><strong>Drag & Drop:</strong> Click and drag a milestone to change its dates.</li>
+                        <li><strong>Quick Edit:</strong> Click on a milestone to open its edit form.</li>
+                        <li><strong>Export:</strong> Use the Export button to save the chart as an image.</li>
+                        <li><strong>Add Milestones:</strong> Add new milestones from the navigation bar.</li>
+                    </ul>
+                    {% else %}
+                    <h6>Note for Collaborators:</h6>
+                    <p>As a collaborator, you can view the Gantt chart but cannot make changes. Only the project owner can modify milestones.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="mt-3">
+                <h6>Legend:</h6>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="d-flex align-items-center">
+                        <div class="milestone-completed me-2" style="width: 20px; height: 20px; border-radius: 3px;"></div>
+                        <span>Completed</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="milestone-in-progress me-2" style="width: 20px; height: 20px; border-radius: 3px;"></div>
+                        <span>In Progress</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="milestone-pending me-2" style="width: 20px; height: 20px; border-radius: 3px;"></div>
+                        <span>Pending</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="milestone-delayed me-2" style="width: 20px; height: 20px; border-radius: 3px;"></div>
+                        <span>Delayed</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="card mb-4">
     <div class="card-body">
@@ -79,6 +191,9 @@
                 <button id="week-view" class="btn btn-outline-primary">Week</button>
                 <button id="month-view" class="btn btn-outline-primary active">Month</button>
             </div>
+            <button id="export-gantt" class="btn btn-success ms-2">
+                <i class="fas fa-download"></i> Export as PNG
+            </button>
         </div>
         
         <div class="gantt-container">
@@ -97,6 +212,7 @@
                 <thead>
                     <tr>
                         <th>Name</th>
+                        <th>Start Date</th>
                         <th>Due Date</th>
                         <th>Status</th>
                         {% if project.user == request.user %}
@@ -108,6 +224,7 @@
                     {% for milestone in milestones %}
                     <tr>
                         <td>{{ milestone.name }}</td>
+                        <td>{{ milestone.start_date }}</td>
                         <td>{{ milestone.due_date }}</td>
                         <td>
                             {% if milestone.status == 'completed' %}
@@ -141,7 +258,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if project.user == request.user %}4{% else %}3{% endif %}" class="text-center">No milestones yet.</td>
+                        <td colspan="{% if project.user == request.user %}5{% else %}4{% endif %}" class="text-center">No milestones yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -153,18 +270,16 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
     // Milestone data from Django context
-    document.addEventListener("DOMContentLoaded", function() {
-        const milestonesData = JSON.parse(document.getElementById('milestones-data').textContent);
-        
-        if (milestonesData && milestonesData.length > 0) {
+    const milestonesData = JSON.parse('{{ milestones_json|escapejs }}');
+    
+    if (milestonesData && milestonesData.length > 0) {
         // Prepare tasks for Gantt chart
         const tasks = milestonesData.map(milestone => {
-            // Calculate a sensible end date for each milestone
-            // For simplicity, we'll use 1 day duration for each milestone
-            const startDate = new Date(milestone.due_date);
-            const endDate = new Date(startDate);
-            endDate.setDate(endDate.getDate() + 1);
+            // Use the start_date and due_date from each milestone
+            const startDate = new Date(milestone.start_date);
+            const endDate = new Date(milestone.due_date);
             
             // Determine colors based on status
             let custom_class = '';
@@ -189,12 +304,14 @@
                 end: endDate,
                 progress: milestone.status === 'completed' ? 100 : 
                            milestone.status === 'in_progress' ? 50 : 0,
-                custom_class: custom_class
+                custom_class: custom_class,
+                dependencies: milestone.dependencies ? milestone.dependencies.map(d => d.toString()) : []
             };
         });
         
-        // Initialize Gantt Chart
-        const gantt = new Gantt("#gantt", tasks, {
+        // Check if the user is the project owner and enable drag & drop accordingly
+        const isProjectOwner = parseInt("{{ project.user.id }}", 10) === parseInt("{{ request.user.id|default:'0' }}", 10);
+        const ganttOptions = {
             header_height: 50,
             column_width: 30,
             step: 24,
@@ -218,13 +335,31 @@
                 return `
                     <div class="card p-2">
                         <h5>${task.name}</h5>
+                        <p><strong>Start Date:</strong> ${milestone.start_date}</p>
                         <p><strong>Due Date:</strong> ${milestone.due_date}</p>
+                        <p><strong>Duration:</strong> ${milestone.duration} day(s)</p>
                         <p><strong>Status:</strong> ${statusText}</p>
                         ${milestone.description ? `<p><strong>Description:</strong> ${milestone.description}</p>` : ''}
                     </div>
                 `;
             }
-        });
+        };
+        
+        // Enable drag & drop only for project owners
+        if (isProjectOwner) {
+            ganttOptions.on_click = task => {
+                // Show milestone details or open edit modal
+                window.location.href = `/milestone/${task.id}/edit/`;
+            };
+            
+            ganttOptions.on_date_change = (task, start, end) => {
+                // Update milestone dates when dragged
+                updateMilestoneDates(task.id, formatDate(start), formatDate(end));
+            };
+        }
+        
+        // Initialize Gantt Chart with options
+        const gantt = new Gantt("#gantt", tasks, ganttOptions);
         
         // Handle view mode changes
         document.getElementById('day-view').addEventListener('click', function() {
@@ -242,9 +377,54 @@
             updateActiveButton('month-view');
         });
         
+        // Export functionality
+        document.getElementById('export-gantt').addEventListener('click', function() {
+            // Get the Gantt chart element
+            const ganttElement = document.querySelector('#gantt');
+            
+            // Show loading indicator
+            const exportBtn = this;
+            const originalText = exportBtn.innerHTML;
+            exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exporting...';
+            exportBtn.disabled = true;
+            
+            // Use html2canvas to create an image
+            html2canvas(ganttElement, {
+                backgroundColor: '#ffffff',
+                scale: 2, // Higher quality
+                logging: false,
+                onclone: function(clonedDoc) {
+                    // Ensure SVG is properly rendered in the clone
+                    const clonedGantt = clonedDoc.querySelector('#gantt');
+                    clonedGantt.style.overflow = 'visible';
+                    clonedGantt.style.width = ganttElement.scrollWidth + 'px';
+                    clonedGantt.style.height = ganttElement.scrollHeight + 'px';
+                }
+            }).then(canvas => {
+                // Create a temporary link and trigger download
+                const link = document.createElement('a');
+                link.download = '{{ project.name }}_gantt_chart.png';
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Restore button state
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            }).catch(error => {
+                console.error('Error exporting Gantt chart:', error);
+                alert('Sorry, there was an error exporting the Gantt chart. Please try again.');
+                
+                // Restore button state
+                exportBtn.innerHTML = originalText;
+                exportBtn.disabled = false;
+            });
+        });
+        
         function updateActiveButton(activeId) {
             // Remove active class from all buttons
-            document.querySelectorAll('.controls .btn').forEach(btn => {
+            document.querySelectorAll('.controls .btn-group .btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             // Add active class to the clicked button
@@ -255,6 +435,137 @@
         document.querySelector('.gantt-container').innerHTML = 
             '<div class="alert alert-info text-center">No milestones to display. Add milestones to see the Gantt chart.</div>';
     }
+    
+    // Function to format date as YYYY-MM-DD
+    function formatDate(date) {
+        const d = new Date(date);
+        let month = '' + (d.getMonth() + 1);
+        let day = '' + d.getDate();
+        const year = d.getFullYear();
+
+        if (month.length < 2) month = '0' + month;
+        if (day.length < 2) day = '0' + day;
+
+        return [year, month, day].join('-');
+    }
+
+    // Function to update milestone dates via AJAX
+    function updateMilestoneDates(milestoneId, startDate, dueDate) {
+        // Show loading indicator
+        const loadingToast = document.createElement('div');
+        loadingToast.innerHTML = `
+            <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050">
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <strong class="me-auto">Updating...</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            <span>Saving changes...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loadingToast);
+        
+        // Send AJAX request to update the milestone
+        fetch(`/milestone/${milestoneId}/update-dates/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                start_date: startDate,
+                due_date: dueDate
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to update milestone dates');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Success - replace loading toast with success message
+            const successToast = document.createElement('div');
+            successToast.innerHTML = `
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050">
+                    <div class="toast show bg-success text-white" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header bg-success text-white">
+                            <strong class="me-auto">Success</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            Milestone dates updated successfully!
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.replaceChild(successToast, loadingToast);
+            
+            // Auto-remove the toast after 3 seconds
+            setTimeout(() => {
+                if (successToast.parentNode) {
+                    successToast.parentNode.removeChild(successToast);
+                }
+            }, 3000);
+            
+            // Update the milestonesData array to reflect the changes
+            const milestone = milestonesData.find(m => m.id === parseInt(milestoneId));
+            if (milestone) {
+                milestone.start_date = startDate;
+                milestone.due_date = dueDate;
+                milestone.duration = data.duration;
+            }
+        })
+        .catch(error => {
+            console.error('Error updating milestone:', error);
+            
+            // Replace loading toast with error message
+            const errorToast = document.createElement('div');
+            errorToast.innerHTML = `
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050">
+                    <div class="toast show bg-danger text-white" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header bg-danger text-white">
+                            <strong class="me-auto">Error</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            Failed to update milestone dates. Please try again.
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.replaceChild(errorToast, loadingToast);
+            
+            // Auto-remove the toast after 5 seconds
+            setTimeout(() => {
+                if (errorToast.parentNode) {
+                    errorToast.parentNode.removeChild(errorToast);
+                }
+            }, 5000);
+        });
+    }
+
+    // Function to get CSRF token
+    function getCsrfToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+
+    // Make sure to add a CSRF token to your template
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add CSRF token to the page if it doesn't exist
+        if (!document.querySelector('[name=csrfmiddlewaretoken]')) {
+            const csrfToken = '{% csrf_token %}';
+            const div = document.createElement('div');
+            div.innerHTML = csrfToken;
+            document.body.appendChild(div);
+        }
     });
+});
 </script>
 {% endblock %}
