@@ -23,4 +23,5 @@ urlpatterns = [
     path('diagnostic/', views.project_diagnostic, name='project_diagnostic'),
     path('milestone/<int:milestone_id>/edit/', views.milestone_update, name='milestone_update'),
     path('milestone/<int:milestone_id>/status/<str:status>/', views.update_milestone_status, name='update_milestone_status'),
+    path('project/<int:project_id>/gantt/', views.project_gantt_view, name='project_gantt_view'),
 ]
