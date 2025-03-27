@@ -75,13 +75,44 @@ def export_project_to_csv(project):
     return response
 
 def export_project_to_pdf(request, project):
-    """Temporary plain text export instead of PDF"""
-    response = HttpResponse(content_type='text/plain')
-    response['Content-Disposition'] = f'attachment; filename="{project.name}.txt"'
-    response.write(f"Project: {project.name}\n")
-    response.write(f"Date Range: {project.start_date} to {project.end_date}\n")
-    response.write(f"Owner: {project.user.username}\n\n")
-    response.write("Milestones:\n")
-    for milestone in project.milestone_set.all():
-        response.write(f"- {milestone.name}: {milestone.due_date}\n")
+    """Export project details to PDF"""
+    from django.template.loader import get_template
+    from django.http import HttpResponse
+    from xhtml2pdf import pisa
+    from io import BytesIO
+
+    # Get the template
+    template = get_template('timeline_app/project_pdf_template.html')
+    
+    # Prepare context for rendering
+    context = {
+        'project': project,
+        'milestones': project.milestone_set.all(),
+        'request': request,
+    }
+    
+    # Render the template with context
+    html = template.render(context)
+    
+    # Create a BytesIO buffer to receive the PDF data
+    buffer = BytesIO()
+    
+    # Generate PDF using pisa (xhtml2pdf)
+    pisa.CreatePDF(
+        html,                   # Rendered template
+        dest=buffer,            # Output buffer
+        encoding='utf-8'        # Encoding
+    )
+    
+    # Get the value of the BytesIO buffer
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    # Create the HTTP response with PDF content
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{project.name}.pdf"'
+    
+    # Write PDF to response
+    response.write(pdf)
+    
     return response
