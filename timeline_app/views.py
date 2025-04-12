@@ -2,11 +2,11 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Project, Milestone, Notification
-from .forms import ProjectForm, MilestoneForm, ProjectShareForm
+from .forms import ProjectForm, MilestoneForm, ProjectShareForm, UserRegistrationForm
 import json
 from django.core.serializers import serialize
 from django.core.serializers.json import DjangoJSONEncoder
-from django.contrib.auth import logout
+from django.contrib.auth import logout, login, authenticate
 from django.contrib.auth.models import User
 from django.contrib import messages
 from .utils import check_upcoming_milestones
@@ -16,6 +16,21 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+
+def register(request):
+    if request.user.is_authenticated:
+        return redirect('timeline_app:dashboard')
+        
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            username = form.cleaned_data.get('username')
+            messages.success(request, f'Account created for {username}! You can now log in.')
+            return redirect('login')
+    else:
+        form = UserRegistrationForm()
+    return render(request, 'registration/register.html', {'form': form})
 
 @login_required
 def dashboard(request):

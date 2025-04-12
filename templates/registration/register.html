@@ -1,25 +1,25 @@
 {% extends "timeline_app/base.html" %}
 {% load crispy_forms_tags %}
 
-{% block title %}Login - Timeline Visualizer{% endblock %}
+{% block title %}Register - Timeline Visualizer{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h2 class="text-center">Login</h2>
+                <h2 class="text-center">Create an Account</h2>
             </div>
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
                     {{ form|crispy }}
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Login</button>
+                        <button type="submit" class="btn btn-primary">Register</button>
                     </div>
                 </form>
                 <div class="text-center mt-3">
-                    <p>Don't have an account? <a href="{% url 'timeline_app:register' %}">Register here</a></p>
+                    <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
                 </div>
             </div>
         </div>

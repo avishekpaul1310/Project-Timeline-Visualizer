@@ -35,6 +35,11 @@
                 </a>
                 <a class="nav-link" href="{% url 'logout' %}">Logout</a>
             </div>
+            {% else %}
+            <div class="navbar-nav">
+                <a class="nav-link" href="{% url 'login' %}">Login</a>
+                <a class="nav-link" href="{% url 'timeline_app:register' %}">Register</a>
+            </div>
             {% endif %}
         </div>
     </nav>
