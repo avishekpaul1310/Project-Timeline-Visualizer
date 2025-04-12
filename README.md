@@ -237,10 +237,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-Created by [Avishek Paul](https://github.com/avishekpaul1310)
+<div align="center">
+  <p>Developed by Avishek Paul</p>
+  <p>© 2025 All Rights Reserved</p>
+</div>
