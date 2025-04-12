@@ -40,9 +40,6 @@ Project Timeline Visualizer is a web-based tool designed to help project manager
 - **Multiple Project Support**: Manage multiple project timelines simultaneously
 - **Project Archiving**: Archive completed projects while keeping them accessible
 
-## Screenshots
-
-*Add screenshots of your application here*
 
 ## Technology Stack
 
